@@ -60,6 +60,13 @@
     .shell{max-width:var(--maxw);margin:auto;display:flex;gap:0;padding:0 28px}
     .side{width:272px;position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);margin-top:20px;padding:12px;transition:width .22s,opacity .18s,margin .22s,padding .22s,border-width .22s}
     .main{flex:1;min-width:0;padding:20px 0 70px 28px}
+    body.project-internet-minimal .utilitybar,
+    body.project-internet-minimal .hdr,
+    body.project-internet-minimal .ticker,
+    body.project-internet-minimal .side,
+    body.project-internet-minimal .sidetoggle{display:none}
+    body.project-internet-minimal .shell{display:block;padding:24px 28px 0}
+    body.project-internet-minimal .main{padding:0 0 70px}
     .ssearch{height:42px;border:0;border-radius:999px;background:#eef0f3;display:flex;align-items:center;gap:10px;color:var(--mut-2);padding:0 14px;margin-bottom:8px}
     .ssearch .pl,.navlabel{font-size:13.5px;color:var(--mut-2)}
     .ssearch kbd{margin-left:auto;font:400 10px "IBM Plex Mono",monospace;color:var(--mut);background:#fff;border:1px solid var(--line);border-radius:5px;padding:3px 5px}
@@ -202,7 +209,7 @@
     .side-closed .main{padding-left:0}
     svg{width:18px;height:18px;stroke-width:1.8}
     @media (max-width:1280px){.kpis{grid-template-columns:repeat(3,1fr)}.dashgrid{grid-template-columns:1fr 1fr}.detail-grid,.cred-grid{grid-template-columns:1fr}}
-    @media (max-width:980px){.shell{padding:0 20px}.side{display:none}.main{padding-left:0}.monthbar,.toolbar{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.detail-grid{grid-template-columns:1fr}.hinner{padding:14px}.clock,.tecto,.user{display:none}.uinner{padding:0 20px}.trow{padding:0 20px}}
+    @media (max-width:980px){.shell{padding:0 20px}.side{display:none}.main{padding-left:0}.monthbar,.toolbar{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.detail-grid{grid-template-columns:1fr}.hinner{padding:14px}.clock,.tecto,.user{display:none}.uinner{padding:0 20px}.trow{padding:0 20px}body.project-internet-minimal .shell{padding:20px}}
     @media (max-width:640px){.trow{height:auto;display:grid;grid-template-columns:1fr;gap:8px;padding:12px 20px}.tscroll{display:grid;mask-image:none;-webkit-mask-image:none}.ti{padding:8px 0;border-left:0;border-top:1px solid var(--line-2)}.greet{padding-right:0}.kpis{grid-template-columns:1fr}.dashgrid{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.donut-wrap,.cred-grid{grid-template-columns:1fr}.uinner{overflow:auto}}
     .pending-mail-list{display:grid;gap:12px;max-height:340px;overflow:auto;padding-right:4px}
     .pending-mail-item{border:1px solid var(--line);border-radius:12px;background:#fbfcff;padding:12px}
@@ -1698,6 +1705,8 @@
     }
 
     function applyProjectMode() {
+      const isInternetMinimal = projectConfig.key === 'internet' && enabledModules.length === 1 && enabledModules[0] === 'internet';
+      document.body.classList.toggle('project-internet-minimal', isInternetMinimal);
       const visibilityMap = {
         internet: ['navInternet', 'moduleInternet'],
         diarista: ['navDiarista', 'moduleDiarista'],
