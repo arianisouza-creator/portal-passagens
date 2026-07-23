@@ -1,0 +1,10 @@
+{
+  "key": "passagens",
+  "name": "Portal Passagens",
+  "browserTitle": "MSE | Portal Passagens",
+  "brandTitle": "Portal Passagens",
+  "brandSubtitle": "Integracao operacional com API",
+  "greeting": "Boa tarde. Bem-vinda ao Portal Passagens.",
+  "defaultModule": "passagens",
+  "enabledModules": ["passagens"]
+}
