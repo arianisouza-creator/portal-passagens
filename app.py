@@ -1,8 +1,7 @@
 """Portal-MSE - servidor único Flask.
 
-Serve o portal (controle-internet.html) e expõe uma API REST mínima,
-compatível com o formato que o front-end já usava com o Supabase/PostgREST,
-mas apontando agora para um banco MySQL.
+Serve o portal (controle-internet.html) e expõe uma API REST mínima
+conectada a um banco MySQL.
 
 Endpoints:
   GET    /                      -> portal HTML com a config injetada
@@ -224,10 +223,51 @@ def render_portal() -> str:
     if not HTML_FILE.exists():
         abort(500, f"Arquivo não encontrado: {HTML_FILE}")
     html = HTML_FILE.read_text(encoding="utf-8")
-    config_json = json.dumps(load_portal_config()).replace("</", "<\\/")
-    injection = f"<script>window.PORTAL_CONFIG = {config_json};</script>"
+    portal_config = load_portal_config()
+    config_json = json.dumps(portal_config).replace("</", "<\\/")
+
+    project = portal_config.get("project", {})
+    enabled = project.get("enabledModules", ["internet"])
+    default_mod = project.get("defaultModule", enabled[0] if enabled else "internet")
+    browser_title = project.get("browserTitle", "MSE | Portal Internet")
+
+    module_map = {
+        "internet": "moduleInternet",
+        "diarista": "moduleDiarista",
+        "passagens": "modulePassagens",
+        "hitachi": "moduleHitachi",
+    }
+    nav_map = {
+        "internet": "navInternet",
+        "diarista": "navDiarista",
+        "passagens": "navPassagens",
+        "hitachi": "navHitachi",
+    }
+    hide_ids = []
+    for mod, mod_id in module_map.items():
+        if mod not in enabled:
+            hide_ids.append(mod_id)
+    for mod, nav_id in nav_map.items():
+        if mod not in enabled:
+            hide_ids.append(nav_id)
+    css_rules = "".join(f"#{hid}{{display:none!important}}" for hid in hide_ids)
+    if default_mod in module_map:
+        css_rules += f"#{module_map[default_mod]}{{display:block}}"
+
+    injection = (
+        f"  <style>{css_rules}</style>\n"
+        f"  <script>window.PORTAL_CONFIG = {config_json};</script>\n"
+    )
+
+    if "<title>" in html and "</title>" in html:
+        html = html.replace(
+            html[html.index("<title>"):html.index("</title>") + len("</title>")],
+            f"<title>{browser_title}</title>",
+            1,
+        )
+
     if "</head>" in html:
-        return html.replace("</head>", f"  {injection}\n</head>", 1)
+        return html.replace("</head>", f"{injection}</head>", 1)
     return f"{injection}\n{html}"
 
 

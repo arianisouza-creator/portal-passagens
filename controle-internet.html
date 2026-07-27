@@ -302,7 +302,7 @@
     </aside>
 
     <main class="main">
-      <section class="module on" id="moduleInternet">
+      <section class="module" id="moduleInternet">
       <div class="subrow2">
         <button class="sidetoggle" id="sideToggle" title="Recolher menu" aria-label="Recolher menu" data-icon="menu"></button>
         <span class="ico" data-icon="wifi"></span>
@@ -3642,7 +3642,7 @@
 
     async function deleteCreditoRemote(id) {
       if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
-      await supabaseRequest('passagens_creditos', {
+      await apiRequest('passagens_creditos', {
         method: 'DELETE',
         query: `id=eq.${encodeURIComponent(String(id))}`
       });
@@ -4195,10 +4195,10 @@
           resetRemoteMonth('internet_month_entries', currentMonthKey()),
           resetRemoteMonth('internet_lines', currentMonthKey())
         ]);
-        setSyncStatus(`Mes ${label} zerado no Supabase`);
+        setSyncStatus(`Mes ${label} zerado no servidor`);
       } catch (error) {
         console.error(error);
-        setSyncStatus(`Falha ao zerar ${label} no Supabase. Cache local mantido.`);
+        setSyncStatus(`Falha ao zerar ${label} no servidor. Cache local mantido.`);
       }
     });
     document.getElementById('resetDiarista').addEventListener('click', async () => {
@@ -4209,7 +4209,7 @@
       renderDiarista();
       try {
         await resetRemoteMonth('diarista_month_entries', currentMonthKey());
-        setSyncStatus(`Diarista de ${label} zerada no Supabase`);
+        setSyncStatus(`Diarista de ${label} zerada no servidor`);
       } catch (error) {
         console.error(error);
         setSyncStatus(`Falha ao zerar diarista de ${label}. Cache local mantido.`);
@@ -4244,7 +4244,7 @@
       render();
       try {
         await upsertContractRemote(payload);
-        setSyncStatus(`Contrato ${payload.empresa} sincronizado com Supabase`);
+        setSyncStatus(`Contrato ${payload.empresa} sincronizado com servidor`);
       } catch (error) {
         console.error(error);
         setSyncStatus(`Falha ao sincronizar contrato ${payload.empresa}. Cache local mantido.`);
@@ -4331,7 +4331,7 @@
           upsertContractRemote(contract),
           upsertMonthEntryRemote(targetMonth, contract.id, monthEntry)
         ]);
-        setSyncStatus(`Registro de ${contract.empresa} sincronizado com Supabase`);
+        setSyncStatus(`Registro de ${contract.empresa} sincronizado com servidor`);
       } catch (error) {
         console.error(error);
         setSyncStatus(`Falha ao sincronizar registro de ${contract.empresa}. Cache local mantido.`);
@@ -4376,7 +4376,7 @@
       render();
       try {
         await syncMonthLinesRemote(monthKey);
-        setSyncStatus(`Linhas do mes ${monthLabel(monthKey)} sincronizadas com Supabase`);
+        setSyncStatus(`Linhas do mes ${monthLabel(monthKey)} sincronizadas com servidor`);
       } catch (error) {
         console.error(error);
         setSyncStatus(`Falha ao sincronizar linhas de ${monthLabel(monthKey)}. Cache local mantido.`);
@@ -4437,7 +4437,7 @@
       renderDiarista();
       try {
         await upsertDiaristaMonthRemote(currentMonthKey(), diaristaId, payload);
-        setSyncStatus('Diarista sincronizada com Supabase');
+        setSyncStatus('Diarista sincronizada com servidor');
       } catch (error) {
         console.error(error);
         setSyncStatus('Falha ao sincronizar diarista. Cache local mantido.');
@@ -4646,7 +4646,7 @@
           resetRemoteMonth('hitachi_collaborators', monthKey),
           resetRemoteMonth('hitachi_company_docs', monthKey)
         ]);
-        setSyncStatus(`KPI Hitachi de ${label} zerado no Supabase`);
+        setSyncStatus(`KPI Hitachi de ${label} zerado no servidor`);
       } catch (error) {
         console.error(error);
         setSyncStatus(`Falha ao zerar KPI Hitachi de ${label}. Cache local mantido.`);

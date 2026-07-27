@@ -1,15 +1,14 @@
--- Schema MySQL do Portal-MSE (migrado do Supabase/PostgreSQL).
+-- Schema MySQL do Portal-MSE.
 -- Compatível com MySQL 8.x e MariaDB 10.4+.
--- Banco de destino padrão: controle_internet_prod
+-- Banco de destino padrão: controle_internet
 --
 -- Como aplicar (linha de comando):
---   mysql -h dbsubdominios.portalmse.com.br -u controle_internet_prod -p controle_internet_prod < mysql-schema.sql
+--   mysql -h dbsubdominios.portalmse.com.br -u controle_internet_prod -p controle_internet < mysql-schema.sql
 --
 -- Observações:
 --   - Os IDs continuam sendo gerados pela aplicação (Date.now()+random), por isso
 --     as PKs BIGINT NÃO usam AUTO_INCREMENT.
---   - As antigas policies de RLS do Supabase (anon) não existem no MySQL; a
---     segurança passa a ser feita pelo backend Flask + privilégios do usuário MySQL.
+--   - A segurança é feita pelo backend Flask + privilégios do usuário MySQL.
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
