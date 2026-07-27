@@ -45,14 +45,14 @@ def _clean(value: str) -> str:
 PASSAGENS_SEED_FILE = Path(__file__).with_name("passagens-import-seed.json")
 
 DEFAULT_PROJECT_CONFIG = {
-    "key": "internet",
-    "name": "Portal Internet",
-    "browserTitle": "MSE | Portal Internet",
-    "brandTitle": "Portal Internet",
+    "key": "passagens",
+    "name": "Portal Passagens",
+    "browserTitle": "MSE | Portal Passagens",
+    "brandTitle": "Portal Passagens",
     "brandSubtitle": "Controle administrativo · operacao mensal",
-    "greeting": "Boa tarde. Bem-vinda ao Portal Internet.",
-    "defaultModule": "internet",
-    "enabledModules": ["internet"],
+    "greeting": "Boa tarde. Bem-vinda ao Portal Passagens.",
+    "defaultModule": "passagens",
+    "enabledModules": ["passagens"],
 }
 
 
