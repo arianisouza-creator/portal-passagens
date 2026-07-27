@@ -80,11 +80,11 @@ def load_project_config() -> dict:
 
 
 DB_CONFIG = {
-    "host": _clean(os.getenv("DB_HOST", "dbsubdominios.portalmse.com.br")),
+    "host": _clean(os.getenv("DB_HOST", "localhost")),
     "port": int(os.getenv("DB_PORT", "3306")),
-    "user": _clean(os.getenv("DB_USER", "controle_internet_prod")),
-    "password": os.getenv("DB_PASSWORD", "controle_internet@2026"),
-    "database": _clean(os.getenv("DB_NAME", "controle_internet")),
+    "user": _clean(os.getenv("DB_USER", "")),
+    "password": os.getenv("DB_PASSWORD", ""),
+    "database": _clean(os.getenv("DB_NAME", "")),
     "charset": "utf8mb4",
     "cursorclass": DictCursor,
     "autocommit": True,

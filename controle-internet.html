@@ -1694,6 +1694,16 @@
     let editingCreditoId = null;
     let deletingPassagemKey = '';
 
+    function requestProtectedPassword(actionLabel = 'continuar') {
+      const password = window.prompt(`Digite a senha para ${actionLabel}:`);
+      if (password == null) return false;
+      if (password !== PROTECTED_PASS) {
+        window.alert('Senha invalida.');
+        return false;
+      }
+      return true;
+    }
+
     function applyProjectBranding() {
       document.title = (projectConfig.browserTitle || 'MSE | Portal Internet').trim();
       const brandTitle = document.getElementById('brandTitle');
@@ -3614,6 +3624,7 @@
     function editCredito(id) {
       const credito = passagensCreditos.find(item => String(item.id) === String(id));
       if (!credito) return;
+      if (!requestProtectedPassword('editar este credito')) return;
       editingCreditoId = credito.id;
       const form = document.getElementById('passagensCreditoForm');
       form.elements.nome.value = credito.nome || '';
@@ -3858,11 +3869,13 @@
     async function syncPassagensData() {
       if (!passagensApiBaseUrl) {
         window.alert('Configure a base da API de passagens antes de sincronizar.');
+        if (!requestProtectedPassword('abrir a configuracao da API')) return;
         openModalById('passagensConfigModal');
         return;
       }
       if (!passagensApiToken) {
         window.alert('Configure o token Bearer da API de passagens antes de sincronizar.');
+        if (!requestProtectedPassword('abrir a configuracao da API')) return;
         openModalById('passagensConfigModal');
         return;
       }
@@ -3909,6 +3922,7 @@
     function editPassagem(key) {
       const item = currentPassagensData().find(row => row.key === key) || passagensRows.map(buildPassagemRow).find(row => row.key === key);
       if (!item) return;
+      if (!requestProtectedPassword('editar esta passagem')) return;
       editingPassagemKey = key;
       const form = document.getElementById('passagensEditForm');
       form.elements.dataCompra.value = item.dataCompra || '';
@@ -4435,6 +4449,7 @@
     document.getElementById('navHitachi')?.addEventListener('click', () => switchModule('hitachi'));
     document.getElementById('syncPassagens').addEventListener('click', syncPassagensData);
     document.getElementById('openPassagensConfig').addEventListener('click', () => {
+      if (!requestProtectedPassword('abrir a configuracao da API')) return;
       const form = document.getElementById('passagensConfigForm');
       form.elements.baseUrl.value = passagensApiBaseUrl;
       form.elements.token.value = passagensApiToken;
