@@ -167,6 +167,16 @@ TABLES: dict[str, dict] = {
         "json": ["data"],
         "bool": [],
     },
+    "passagens_hospedagens": {
+        "columns": ["id", "data", "updated_at"],
+        "json": ["data"],
+        "bool": [],
+    },
+    "passagens_carros": {
+        "columns": ["id", "data", "updated_at"],
+        "json": ["data"],
+        "bool": [],
+    },
 }
 
 
@@ -253,6 +263,13 @@ def render_portal() -> str:
     css_rules = "".join(f"#{hid}{{display:none!important}}" for hid in hide_ids)
     if default_mod in module_map:
         css_rules += f"#{module_map[default_mod]}{{display:block}}"
+    if len(enabled) == 1:
+        css_rules += (
+            "body{margin:0;background:#e8eaee}"
+            ".utilitybar,.hdr,.ticker,.side,.sidetoggle{display:none!important}"
+            ".shell{display:block!important;padding:24px 28px 0!important;max-width:1440px!important;margin:auto!important}"
+            ".main{padding:0 0 70px!important}"
+        )
 
     injection = (
         f"  <style>{css_rules}</style>\n"
