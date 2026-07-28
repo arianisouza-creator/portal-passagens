@@ -2511,10 +2511,10 @@ AMAURI BARROSO DE MOURA"></textarea>
         apiRequest('hitachi_collaborators', { query: 'select=*&order=month_key.desc,empresa.asc,colaborador.asc' }),
         apiRequest('hitachi_company_docs', { query: 'select=*&order=month_key.desc,empresa.asc,documento.asc' }),
         PASSAGENS_API_ONLY ? Promise.resolve([]) : apiRequest('passagens_rows', { query: 'select=*&order=updated_at.asc' }),
-        PASSAGENS_API_ONLY ? Promise.resolve([]) : apiRequest('passagens_complements', { query: 'select=*&order=updated_at.asc' }),
-        PASSAGENS_API_ONLY ? Promise.resolve([]) : apiRequest('passagens_creditos', { query: 'select=*&order=updated_at.asc' }),
-        PASSAGENS_API_ONLY ? Promise.resolve([]) : apiRequest('passagens_hospedagens', { query: 'select=*&order=updated_at.asc' }),
-        PASSAGENS_API_ONLY ? Promise.resolve([]) : apiRequest('passagens_carros', { query: 'select=*&order=updated_at.asc' })
+        apiRequest('passagens_complements', { query: 'select=*&order=updated_at.asc' }),
+        apiRequest('passagens_creditos', { query: 'select=*&order=updated_at.asc' }),
+        apiRequest('passagens_hospedagens', { query: 'select=*&order=updated_at.asc' }),
+        apiRequest('passagens_carros', { query: 'select=*&order=updated_at.asc' })
       ]);
       return {
         contracts: remoteContracts,
@@ -2541,11 +2541,13 @@ AMAURI BARROSO DE MOURA"></textarea>
           const payload = mergePassagensPayload(localPayload, remotePayload);
           hydrateState(payload);
           saveLocalCache();
-          if (!PASSAGENS_API_ONLY && (
+          if (
             (localPayload.passagensRows || localPayload.passagens_rows || []).length ||
             (localPayload.passagensComplements || localPayload.passagens_complements || []).length ||
-            (localPayload.passagensCreditos || localPayload.passagens_creditos || []).length
-          )) {
+            (localPayload.passagensCreditos || localPayload.passagens_creditos || []).length ||
+            (localPayload.passagensHospedagens || localPayload.passagens_hospedagens || []).length ||
+            (localPayload.passagensCarros || localPayload.passagens_carros || []).length
+          ) {
             syncPassagensStorageRemote().catch(error => console.error(error));
           }
           setSyncStatus(PASSAGENS_API_ONLY ? 'Portal carregado. Passagens em modo API.' : 'Ultima atualizacao via banco MySQL');
@@ -2704,7 +2706,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     async function upsertPassagemComplementRemote(key, data) {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       await apiRequest('passagens_complements', {
         method: 'POST',
         prefer: 'resolution=merge-duplicates,return=representation',
@@ -2716,7 +2718,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     async function upsertPassagemCreditoRemote(item) {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       await apiRequest('passagens_creditos', {
         method: 'POST',
         prefer: 'resolution=merge-duplicates,return=representation',
@@ -2728,7 +2730,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     async function upsertPassagemHospedagemRemote(item) {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       await apiRequest('passagens_hospedagens', {
         method: 'POST',
         prefer: 'resolution=merge-duplicates,return=representation',
@@ -2740,7 +2742,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     async function upsertPassagemCarroRemote(item) {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       await apiRequest('passagens_carros', {
         method: 'POST',
         prefer: 'resolution=merge-duplicates,return=representation',
@@ -2752,7 +2754,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     async function deletePassagemHospedagemRemote(id) {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       await apiRequest('passagens_hospedagens', {
         method: 'DELETE',
         query: `id=eq.${encodeURIComponent(String(id))}`
@@ -2760,7 +2762,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     async function deletePassagemCarroRemote(id) {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       await apiRequest('passagens_carros', {
         method: 'DELETE',
         query: `id=eq.${encodeURIComponent(String(id))}`
@@ -2782,9 +2784,9 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     async function syncPassagensStorageRemote() {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       await Promise.all([
-        ...passagensRows.map(item => upsertPassagemRowRemote(item)),
+        ...(PASSAGENS_API_ONLY ? [] : passagensRows.map(item => upsertPassagemRowRemote(item))),
         ...Object.entries(passagensComplements).map(([key, value]) => upsertPassagemComplementRemote(key, value)),
         ...passagensCreditos.map(item => upsertPassagemCreditoRemote(item)),
         ...passagensHospedagens.map(item => upsertPassagemHospedagemRemote(item)),
@@ -5491,7 +5493,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     window.editCredito = editCredito;
 
     async function deleteCreditoRemote(id) {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       await apiRequest('passagens_creditos', {
         method: 'DELETE',
         query: `id=eq.${encodeURIComponent(String(id))}`
