@@ -5691,14 +5691,14 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function renderPassagens() {
-      const todayRows = filteredPassagens(todayPassagensData(), 'all');
-      const monthRows = currentPassagensData();
-      const totalPaidToday = todayRows.reduce((sum, row) => sum + (row.valorPago || 0), 0);
-      const totalSavingsToday = todayRows.reduce((sum, row) => sum + (row.economia || 0), 0);
+      const monthRows = filteredPassagens(currentPassagensData(), 'all');
+      const todayRows = monthRows.filter(row => normalizeDateValue(row.dataCompra) === todayKey());
+      const totalPaidMonth = monthRows.reduce((sum, row) => sum + (row.valorPago || 0), 0);
+      const totalSavingsMonth = monthRows.reduce((sum, row) => sum + (row.economia || 0), 0);
       const byObra = {};
       const byMode = { Aereo: { count: 0, total: 0 }, Rodoviario: { count: 0, total: 0 } };
       const savingsByObra = {};
-      todayRows.forEach(row => {
+      monthRows.forEach(row => {
         const obra = row.nome_obra || 'Sem obra';
         byObra[obra] = (byObra[obra] || 0) + (row.valorPago || 0);
         if (row.modalidade === 'Aereo' || row.modalidade === 'Rodoviario') {
@@ -5732,15 +5732,15 @@ AMAURI BARROSO DE MOURA"></textarea>
       });
 
       pMonthPicker.value = currentPassagensMonth();
-      document.getElementById('pPageTitle').textContent = `Controle de Passagens | compras de hoje`;
+      document.getElementById('pPageTitle').textContent = `Controle de Passagens | ${monthLabel(currentPassagensMonth())}`;
       document.getElementById('pPageSubtitle').textContent = todayRows.length
-        ? `A tela inicial mostra somente as passagens compradas hoje (${formatDate(todayKey())}).`
-        : `Nenhuma passagem comprada hoje. Os demais detalhes seguem disponiveis nas abas de Aereo, Rodoviario, Hospedagem e Carros.`;
-      document.getElementById('pTotal').textContent = todayRows.length;
-      document.getElementById('pAir').textContent = todayRows.filter(row => row.modalidade === 'Aereo').length;
-      document.getElementById('pRoad').textContent = todayRows.filter(row => row.modalidade === 'Rodoviario').length;
-      document.getElementById('pPaid').textContent = brl(totalPaidToday);
-      document.getElementById('pSavings').textContent = brl(totalSavingsToday);
+        ? `Os cards e graficos mostram o resumo mensal. A tabela abaixo destaca as passagens compradas hoje (${formatDate(todayKey())}).`
+        : `Os cards e graficos mostram o resumo mensal. Hoje ainda nao houve compras registradas neste mes selecionado.`;
+      document.getElementById('pTotal').textContent = monthRows.length;
+      document.getElementById('pAir').textContent = monthRows.filter(row => row.modalidade === 'Aereo').length;
+      document.getElementById('pRoad').textContent = monthRows.filter(row => row.modalidade === 'Rodoviario').length;
+      document.getElementById('pPaid').textContent = brl(totalPaidMonth);
+      document.getElementById('pSavings').textContent = brl(totalSavingsMonth);
       document.getElementById('pCountLabel').textContent = `${todayRows.length} compras de hoje`;
       document.getElementById('pFootCount').textContent = `${todayRows.length} item(ns) hoje`;
       document.getElementById('pAirCount').textContent = `${airRangeRows.length} registro(s)`;
@@ -5771,7 +5771,7 @@ AMAURI BARROSO DE MOURA"></textarea>
           <div class="barlabel"><span>${obra}</span><b>${brl(total)}</b></div>
           <div class="track"><div class="fill" style="width:${obraMax ? (total / obraMax) * 100 : 0}%"></div></div>
         </div>
-      `).join('') : `<div class="empty-state"><b>Sem compras hoje.</b>Assim que houver novas emissões hoje, o gasto por obra aparece aqui.</div>`;
+      `).join('') : `<div class="empty-state"><b>Sem compras no mes.</b>Assim que houver novas emissoes no periodo selecionado, o gasto por obra aparece aqui.</div>`;
       const modeEntries = Object.entries(byMode);
       const modeMax = Math.max(...modeEntries.map(([, info]) => info.count), 0);
       document.getElementById('pModeBars').innerHTML = modeEntries.map(([mode, info]) => `
@@ -5783,10 +5783,10 @@ AMAURI BARROSO DE MOURA"></textarea>
       const savingsEntries = Object.entries(savingsByObra).sort((a, b) => b[1] - a[1]);
       document.getElementById('pSavingsList').innerHTML = savingsEntries.length ? savingsEntries.map(([obra, total]) => `
         <div class="li">
-          <div><b class="link">${obra}</b><div class="lisub">Economia acumulada nas compras de hoje</div></div>
+          <div><b class="link">${obra}</b><div class="lisub">Economia acumulada no mes selecionado</div></div>
           <span class="tag ok">${brl(total)}</span>
         </div>
-      `).join('') : `<div class="empty-state"><b>Sem economia hoje.</b>Esse quadro mostra apenas compras do dia com valor pago abaixo do aprovado.</div>`;
+      `).join('') : `<div class="empty-state"><b>Sem economia no mes.</b>Esse quadro mostra compras do periodo com valor pago abaixo do aprovado.</div>`;
 
       renderPassagensTable('pRows', todayRows, 10);
       renderPassagensTable('pAirRows', airRangeRows, 10);
