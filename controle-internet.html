@@ -1045,6 +1045,7 @@
                     <th>Itinerario</th>
                     <th>Motivo</th>
                     <th>Pedido</th>
+                    <th>Status do pedido</th>
                     <th>Observacao</th>
                   </tr>
                 </thead>
@@ -1087,6 +1088,7 @@
                     <th>Reserva</th>
                     <th>Motivo</th>
                     <th>Pedido</th>
+                    <th>Status do pedido</th>
                     <th>Observacao</th>
                   </tr>
                 </thead>
@@ -1808,6 +1810,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         <label>Itinerario<input name="itinerario"></label>
         <label>Motivo<input name="motivo"></label>
         <label>Numero do pedido<input name="numeroPedido"></label>
+        <label>Status do pedido<select name="statusPedido"><option>Aguardando pedido</option><option>Em aprovação</option><option>Reprovado</option><option>Aprovado</option></select></label>
         <label class="checklabel"><input name="pago" type="checkbox">Pago</label>
         <label style="grid-column:1 / -1">Observacao<input name="observacao"></label>
         <div class="helper" id="passagensConfigFeedback" style="grid-column:1 / -1"></div>
@@ -1833,6 +1836,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         <label>Numero da reserva<input name="numeroReserva"></label>
         <label>Motivo<input name="motivo"></label>
         <label>Numero do pedido<input name="numeroPedido"></label>
+        <label>Status do pedido<select name="statusPedido"><option>Aguardando pedido</option><option>Em aprovação</option><option>Reprovado</option><option>Aprovado</option></select></label>
         <label class="checklabel"><input name="pago" type="checkbox">Pago</label>
         <label style="grid-column:1 / -1">Observacao<input name="observacao"></label>
         <footer style="grid-column:1 / -1">
@@ -2414,6 +2418,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         itinerario: item.itinerario || '',
         motivo: item.motivo || '',
         numeroPedido: item.numeroPedido ?? item.numero_pedido ?? '',
+        statusPedido: item.statusPedido ?? item.status_pedido ?? 'Aguardando pedido',
         observacao: item.observacao || '',
         pago: parseBool(item.pago ?? false)
       }))));
@@ -2430,6 +2435,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         numeroReserva: item.numeroReserva ?? item.numero_reserva ?? '',
         motivo: item.motivo || '',
         numeroPedido: item.numeroPedido ?? item.numero_pedido ?? '',
+        statusPedido: item.statusPedido ?? item.status_pedido ?? 'Aguardando pedido',
         observacao: item.observacao || '',
         pago: parseBool(item.pago ?? false)
       }))));
@@ -4810,6 +4816,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         itinerario: [row.origem, row.destino].filter(Boolean).join(' - '),
         motivo: row.tipo || '',
         numeroPedido: row.pedido || '',
+        statusPedido: 'Aguardando pedido',
         observacao: '',
         cartaoOuFaturado: ''
       };
@@ -4844,6 +4851,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         numeroReserva: '',
         motivo: row.tipo || '',
         numeroPedido: row.pedido || '',
+        statusPedido: 'Aguardando pedido',
         observacao: ''
       };
       if (existing) {
@@ -5046,6 +5054,7 @@ AMAURI BARROSO DE MOURA"></textarea>
               <div class="ditem"><span>Itinerario</span><input name="itinerario" value="${escapeHtml(item.itinerario || '')}"></div>
               <div class="ditem"><span>Motivo</span><input name="motivo" value="${escapeHtml(item.motivo || '')}"></div>
               <div class="ditem"><span>Pedido</span><input name="numeroPedido" value="${escapeHtml(item.numeroPedido || '')}"></div>
+              <div class="ditem"><span>Status do pedido</span><select name="statusPedido"><option ${item.statusPedido === 'Aguardando pedido' ? 'selected' : ''}>Aguardando pedido</option><option ${item.statusPedido === 'Em aprovação' ? 'selected' : ''}>Em aprovação</option><option ${item.statusPedido === 'Reprovado' ? 'selected' : ''}>Reprovado</option><option ${item.statusPedido === 'Aprovado' ? 'selected' : ''}>Aprovado</option></select></div>
               <div class="ditem"><span>Pago</span><label><input name="pago" type="checkbox" ${item.pago ? 'checked' : ''}> Confirmado</label></div>
               <div class="ditem" style="grid-column:1 / -1"><span>Observacao</span><input name="observacao" value="${escapeHtml(item.observacao || '')}"></div>
             </form>
@@ -5071,6 +5080,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <div class="ditem"><span>Itinerario</span><b>${valueText(item.itinerario)}</b></div>
             <div class="ditem"><span>Motivo</span><b>${valueText(item.motivo)}</b></div>
             <div class="ditem"><span>Pedido</span><b>${valueText(item.numeroPedido)}</b></div>
+            <div class="ditem"><span>Status do pedido</span><b>${valueText(item.statusPedido || 'Aguardando pedido')}</b></div>
             <div class="ditem"><span>Pagamento</span><b>${item.pago ? 'Pago' : 'Pendente'}</b></div>
             <div class="ditem" style="grid-column:1 / -1"><span>Observacao</span><b>${valueText(item.observacao)}</b></div>
           </div>
@@ -5094,6 +5104,7 @@ AMAURI BARROSO DE MOURA"></textarea>
               <div class="ditem"><span>Numero da reserva</span><input name="numeroReserva" value="${escapeHtml(item.numeroReserva || '')}"></div>
               <div class="ditem"><span>Motivo</span><input name="motivo" value="${escapeHtml(item.motivo || '')}"></div>
               <div class="ditem"><span>Pedido</span><input name="numeroPedido" value="${escapeHtml(item.numeroPedido || '')}"></div>
+              <div class="ditem"><span>Status do pedido</span><select name="statusPedido"><option ${item.statusPedido === 'Aguardando pedido' ? 'selected' : ''}>Aguardando pedido</option><option ${item.statusPedido === 'Em aprovação' ? 'selected' : ''}>Em aprovação</option><option ${item.statusPedido === 'Reprovado' ? 'selected' : ''}>Reprovado</option><option ${item.statusPedido === 'Aprovado' ? 'selected' : ''}>Aprovado</option></select></div>
               <div class="ditem"><span>Pago</span><label><input name="pago" type="checkbox" ${item.pago ? 'checked' : ''}> Confirmado</label></div>
               <div class="ditem" style="grid-column:1 / -1"><span>Observacao</span><input name="observacao" value="${escapeHtml(item.observacao || '')}"></div>
             </form>
@@ -5115,6 +5126,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <div class="ditem"><span>Numero da reserva</span><b>${valueText(item.numeroReserva)}</b></div>
             <div class="ditem"><span>Motivo</span><b>${valueText(item.motivo)}</b></div>
             <div class="ditem"><span>Pedido</span><b>${valueText(item.numeroPedido)}</b></div>
+            <div class="ditem"><span>Status do pedido</span><b>${valueText(item.statusPedido || 'Aguardando pedido')}</b></div>
             <div class="ditem"><span>Pagamento</span><b>${item.pago ? 'Pago' : 'Pendente'}</b></div>
             <div class="ditem" style="grid-column:1 / -1"><span>Observacao</span><b>${valueText(item.observacao)}</b></div>
           </div>
@@ -5357,7 +5369,8 @@ AMAURI BARROSO DE MOURA"></textarea>
         <tr><th>Diarias</th><td>${item.numeroDiarias || '-'}</td><th>Valor diaria</th><td>${item.valorDiaria || '-'}</td></tr>
         <tr><th>Total diarias</th><td>${item.valorTotalDiarias || '-'}</td><th>Valor total</th><td>${item.valorTotal || '-'}</td></tr>
         <tr><th>Itinerario</th><td>${item.itinerario || '-'}</td><th>Motivo</th><td>${item.motivo || '-'}</td></tr>
-        <tr><th>Pedido</th><td>${item.numeroPedido || '-'}</td><th>Pagamento</th><td>${item.pago ? 'Pago' : 'Pendente'}</td></tr>
+        <tr><th>Pedido</th><td>${item.numeroPedido || '-'}</td><th>Status do pedido</th><td>${item.statusPedido || 'Aguardando pedido'}</td></tr>
+        <tr><th>Pagamento</th><td>${item.pago ? 'Pago' : 'Pendente'}</td><th>Cartao/Faturado</th><td>${item.cartaoOuFaturado || '-'}</td></tr>
         <tr><th>Observacao</th><td colspan="3">${item.observacao || '-'}</td></tr>
       `;
       const view = window.open('', '_blank', 'width=1100,height=900');
@@ -5379,6 +5392,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         <tr><th>Retirada</th><td>${formatDate(item.retirada)}</td><th>Devolucao</th><td>${formatDate(item.devolucao)}</td></tr>
         <tr><th>Numero de diarias</th><td>${item.numeroDiarias || '-'}</td><th>Valor total</th><td>${item.valorTotal || '-'}</td></tr>
         <tr><th>Reserva</th><td>${item.numeroReserva || '-'}</td><th>Motivo</th><td>${item.motivo || '-'}</td></tr>
+        <tr><th>Status do pedido</th><td>${item.statusPedido || 'Aguardando pedido'}</td><th>Pagamento</th><td>${item.pago ? 'Pago' : 'Pendente'}</td></tr>
         <tr><th>Observacao</th><td colspan="3">${item.observacao || '-'}</td></tr>
       `;
       const view = window.open('', '_blank', 'width=1100,height=900');
@@ -5621,6 +5635,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td>${item.itinerario || '-'}</td>
             <td>${item.motivo || '-'}</td>
             <td>${item.numeroPedido || '-'}</td>
+            <td>${item.statusPedido || 'Aguardando pedido'}</td>
             <td>${item.observacao || '-'}</td>
           </tr>
           ${isExpandedEntity('hosp', item.id) ? `<tr class="detail-row"><td colspan="${columns}">${detailHospedagemGrid(item)}</td></tr>` : ''}
@@ -5649,6 +5664,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td>${item.numeroReserva || '-'}</td>
             <td>${item.motivo || '-'}</td>
             <td>${item.numeroPedido || '-'}</td>
+            <td>${item.statusPedido || 'Aguardando pedido'}</td>
             <td>${item.observacao || '-'}</td>
           </tr>
           ${isExpandedEntity('car', item.id) ? `<tr class="detail-row"><td colspan="${columns}">${detailCarroGrid(item)}</td></tr>` : ''}
@@ -5701,14 +5717,14 @@ AMAURI BARROSO DE MOURA"></textarea>
         pRoadHeaderFilters
       );
       const hospedagemRows = passagensHospedagens.filter(item => (passagensHospTab === 'finalized' ? item.pago : true)).filter(item => {
-        if (!queryMatch([item.nome, item.obra, item.hotel, item.cidade, item.motivo, item.numeroPedido])) return false;
+        if (!queryMatch([item.nome, item.obra, item.hotel, item.cidade, item.motivo, item.numeroPedido, item.statusPedido])) return false;
         const refDate = normalizeDateValue(item.checkIn || item.checkOut);
         if (pHospStart.value && (!refDate || refDate < normalizeDateValue(pHospStart.value))) return false;
         if (pHospEnd.value && (!refDate || refDate > normalizeDateValue(pHospEnd.value))) return false;
         return true;
       });
       const carroRows = passagensCarros.filter(item => (passagensCarTab === 'finalized' ? item.pago : true)).filter(item => {
-        if (!queryMatch([item.motorista, item.obra, item.cidade, item.motivo, item.numeroPedido, item.numeroReserva])) return false;
+        if (!queryMatch([item.motorista, item.obra, item.cidade, item.motivo, item.numeroPedido, item.numeroReserva, item.statusPedido])) return false;
         const refDate = normalizeDateValue(item.retirada || item.devolucao);
         if (pCarStart.value && (!refDate || refDate < normalizeDateValue(pCarStart.value))) return false;
         if (pCarEnd.value && (!refDate || refDate > normalizeDateValue(pCarEnd.value))) return false;
@@ -5775,8 +5791,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       renderPassagensTable('pRows', todayRows, 10);
       renderPassagensTable('pAirRows', airRangeRows, 10);
       renderPassagensTable('pRoadRows', roadRangeRows, 10);
-      renderPassagensTable('pHospRows', hospedagemRows, 16);
-      renderPassagensTable('pCarRows', carroRows, 12);
+      renderPassagensTable('pHospRows', hospedagemRows, 17);
+      renderPassagensTable('pCarRows', carroRows, 13);
 
       renderPassagensRangeSummary('pAirSummary', 'pAirRangeLabel', airRangeRows, pAirStart.value, pAirEnd.value);
       renderPassagensRangeSummary('pRoadSummary', 'pRoadRangeLabel', roadRangeRows, pRoadStart.value, pRoadEnd.value);
@@ -5966,6 +5982,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         itinerario: formData.itinerario || '',
         motivo: formData.motivo || '',
         numeroPedido: formData.numeroPedido || '',
+        statusPedido: formData.statusPedido || 'Aguardando pedido',
         observacao: formData.observacao || '',
         pago: Boolean(formData.pago)
       });
@@ -5996,6 +6013,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         numeroReserva: formData.numeroReserva || '',
         motivo: formData.motivo || '',
         numeroPedido: formData.numeroPedido || '',
+        statusPedido: formData.statusPedido || 'Aguardando pedido',
         observacao: formData.observacao || '',
         pago: Boolean(formData.pago)
       });
@@ -6752,6 +6770,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         itinerario: formData.itinerario || '',
         motivo: formData.motivo || '',
         numeroPedido: formData.numeroPedido || '',
+        statusPedido: formData.statusPedido || 'Aguardando pedido',
         observacao: formData.observacao || '',
         pago: Boolean(formData.pago)
       });
@@ -6777,6 +6796,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         numeroReserva: formData.numeroReserva || '',
         motivo: formData.motivo || '',
         numeroPedido: formData.numeroPedido || '',
+        statusPedido: formData.statusPedido || 'Aguardando pedido',
         observacao: formData.observacao || '',
         pago: Boolean(formData.pago)
       });
