@@ -5400,6 +5400,7 @@ AMAURI BARROSO DE MOURA"></textarea>
           <td>${row.pedido || '-'}</td>
           <td>${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
           <td>${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
+          <td>${row.observacao || '-'}</td>
         </tr>
       `).join('');
       const obraRows = summary.obraEntries.map(item => `
@@ -5478,9 +5479,10 @@ AMAURI BARROSO DE MOURA"></textarea>
           <th>Pedido</th>
           <th>Valor aprovado</th>
           <th>Valor pago</th>
+          <th>Observacao</th>
         </tr>
       </thead>
-      <tbody>${tableRows || '<tr><td colspan="16">Nenhuma passagem encontrada para o periodo informado.</td></tr>'}</tbody>
+      <tbody>${tableRows || '<tr><td colspan="17">Nenhuma passagem encontrada para o periodo informado.</td></tr>'}</tbody>
     </table>
   </div>
 </body>
