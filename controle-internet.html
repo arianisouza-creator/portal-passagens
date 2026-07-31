@@ -5353,7 +5353,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         .slice()
         .sort((a, b) => String(b.dataCompra || '').localeCompare(String(a.dataCompra || '')) || (b.economia || 0) - (a.economia || 0))
         .map(row => `
-          <tr>
+          <tr class="compact-row row-main-click ${row.pagoConfirmado ? 'paid-row' : ''}" onclick="togglePassagemExpanded('${row.key}')">
             <td>${formatDate(row.dataCompra)}</td>
             <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
             <td>${escapeHtml(row.nome_obra || '-')}</td>
@@ -5363,11 +5363,13 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td class="money" style="color:#15803d;font-weight:800">${brl(row.economia || 0)}</td>
             <td class="actioncell">
               <div style="display:flex;justify-content:flex-end;gap:8px;white-space:nowrap">
+                <button class="rowflag" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();togglePassagemExpanded('${row.key}')">${icon(expandedPassagemKeys.has(row.key) ? 'chevronDown' : 'chevronRight')}</button>
                 <button class="rowact" title="Editar passagem" aria-label="Editar passagem" onclick="event.stopPropagation();editPassagem('${row.key}')">${icon('edit')}</button>
                 <button class="rowact" title="Excluir passagem" aria-label="Excluir passagem" onclick="event.stopPropagation();requestDeletePassagem('${row.key}')">${icon('trash')}</button>
               </div>
             </td>
           </tr>
+          ${expandedPassagemKeys.has(row.key) ? `<tr class="detail-row"><td colspan="8">${detailPassagemGrid(row)}</td></tr>` : ''}
         `).join('')
         : `<tr><td colspan="8"><div class="empty-state"><b>Nenhuma economia registrada neste mes.</b>Quando o valor pago ficar abaixo do aprovado, os itens aparecem aqui.</div></td></tr>`;
     }
