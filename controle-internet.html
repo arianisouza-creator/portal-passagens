@@ -732,6 +732,7 @@
           <button class="toplink" data-p-view="carros">Carros</button>
           <button class="toplink" data-p-view="cadastro">Cadastro</button>
           <button class="toplink" data-p-view="creditos">Creditos</button>
+          <button class="toplink" data-p-view="kpi">KPI</button>
         </div>
 
         <div class="view on" id="pview-overview">
@@ -831,6 +832,72 @@
               </table>
             </div>
             <div class="table-foot">Sincronizacao mensal: <span id="pFootCount">0</span></div>
+          </section>
+        </div>
+
+        <div class="view" id="pview-kpi">
+          <div class="hero">
+            <h1 id="pKpiTitle">KPI Executivo de Passagens</h1>
+            <p id="pKpiSubtitle">Resumo mensal das passagens com economia registrada para apresentacao executiva.</p>
+          </div>
+
+          <section class="kpis" style="grid-template-columns:repeat(5,1fr)">
+            <div class="kpi">
+              <div class="ktop"><div class="kicon blue" data-icon="fileText"></div><div class="klabel">Compras com economia</div></div>
+              <div class="kvalue" id="pKpiCount">0</div>
+              <div class="kmeta">Passagens com economia no mes</div>
+            </div>
+            <div class="kpi">
+              <div class="ktop"><div class="kicon slate" data-icon="coins"></div><div class="klabel">Valor aprovado</div></div>
+              <div class="kvalue" id="pKpiApproved">R$ 0,00</div>
+              <div class="kmeta">Referencia aprovada das economias</div>
+            </div>
+            <div class="kpi">
+              <div class="ktop"><div class="kicon blue" data-icon="dollar"></div><div class="klabel">Valor pago</div></div>
+              <div class="kvalue" id="pKpiPaid">R$ 0,00</div>
+              <div class="kmeta">Pagamento efetivo das economias</div>
+            </div>
+            <div class="kpi">
+              <div class="ktop"><div class="kicon green" data-icon="badgeCheck"></div><div class="klabel">Economia total</div></div>
+              <div class="kvalue" id="pKpiSavings">R$ 0,00</div>
+              <div class="kmeta">Economia acumulada no mes</div>
+            </div>
+            <div class="kpi">
+              <div class="ktop"><div class="kicon green" data-icon="barChart3"></div><div class="klabel">% de economia</div></div>
+              <div class="kvalue" id="pKpiRate">0%</div>
+              <div class="kmeta" id="pKpiRateMeta">Impacto sobre os casos com economia</div>
+            </div>
+          </section>
+
+          <section class="dashgrid" style="grid-template-columns:1.15fr .85fr;margin-top:14px">
+            <article class="card pad">
+              <div class="chead"><span class="ti2">Evolucao diaria da economia</span><span class="eyebrow">Somente registros com economia</span></div>
+              <div id="pKpiDailyChart"></div>
+            </article>
+            <article class="card pad">
+              <div class="chead"><span class="ti2">Leitura executiva</span><span class="eyebrow">Resumo automatico</span></div>
+              <div class="list" id="pKpiInsights"></div>
+            </article>
+          </section>
+
+          <section class="card pad" style="margin-top:14px">
+            <div class="chead"><span class="ti2">Economias registradas no mes</span><span class="eyebrow" id="pKpiTableCount">0 registros com economia</span></div>
+            <div style="overflow:auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data da compra</th>
+                    <th>Colaborador</th>
+                    <th>Obra</th>
+                    <th>Modalidade</th>
+                    <th>Valor aprovado</th>
+                    <th>Valor pago</th>
+                    <th>Economia</th>
+                  </tr>
+                </thead>
+                <tbody id="pKpiRows"></tbody>
+              </table>
+            </div>
           </section>
         </div>
 
@@ -5198,6 +5265,110 @@ AMAURI BARROSO DE MOURA"></textarea>
       ` : `<div class="empty-state"><b>Nenhuma passagem no periodo.</b>Escolha uma nova data inicial e final para consultar.</div>`;
     }
 
+    function renderPassagensKpi(monthRows) {
+      const savingsRows = monthRows.filter(row => (row.economia || 0) > 0);
+      const approvedTotal = savingsRows.reduce((sum, row) => sum + (row.valorAprovado || 0), 0);
+      const paidTotal = savingsRows.reduce((sum, row) => sum + (row.valorPago || 0), 0);
+      const totalSavings = savingsRows.reduce((sum, row) => sum + (row.economia || 0), 0);
+      const savingsRate = approvedTotal > 0 ? (totalSavings / approvedTotal) * 100 : 0;
+      document.getElementById('pKpiTitle').textContent = `KPI Executivo | ${monthLabel(currentPassagensMonth())}`;
+      document.getElementById('pKpiSubtitle').textContent = `Visao consolidada das passagens com economia registrada em ${monthLabel(currentPassagensMonth())}.`;
+      document.getElementById('pKpiCount').textContent = savingsRows.length;
+      document.getElementById('pKpiApproved').textContent = brl(approvedTotal);
+      document.getElementById('pKpiPaid').textContent = brl(paidTotal);
+      document.getElementById('pKpiSavings').textContent = brl(totalSavings);
+      document.getElementById('pKpiRate').textContent = `${savingsRate.toFixed(1).replace('.', ',')}%`;
+      document.getElementById('pKpiRateMeta').textContent = savingsRows.length
+        ? `${savingsRows.length} compra(s) com economia registrada`
+        : 'Nenhuma compra com economia registrada';
+
+      const byDate = new Map();
+      savingsRows.forEach(row => {
+        const date = normalizeDateValue(row.dataCompra);
+        if (!date) return;
+        const current = byDate.get(date) || { date, approved: 0, paid: 0, savings: 0 };
+        current.approved += row.valorAprovado || 0;
+        current.paid += row.valorPago || 0;
+        current.savings += row.economia || 0;
+        byDate.set(date, current);
+      });
+      const dailyRows = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+      const maxDaily = Math.max(1, ...dailyRows.map(item => Math.max(item.approved, item.paid, item.savings)));
+      const width = 760;
+      const height = 250;
+      const left = 40;
+      const right = 24;
+      const top = 20;
+      const bottom = 42;
+      const innerWidth = width - left - right;
+      const innerHeight = height - top - bottom;
+      const buildPoints = field => dailyRows.map((item, index) => {
+        const x = dailyRows.length === 1 ? left + innerWidth / 2 : left + ((innerWidth * index) / (dailyRows.length - 1));
+        const y = top + innerHeight - (((item[field] || 0) / maxDaily) * innerHeight);
+        return { x, y, item };
+      });
+      const approvedPoints = buildPoints('approved');
+      const paidPoints = buildPoints('paid');
+      const savingsPoints = buildPoints('savings');
+      const polyline = points => points.map(point => `${point.x},${point.y}`).join(' ');
+      const labelMonthDay = value => {
+        if (!value) return '-';
+        const [year, month, day] = String(value).split('-');
+        return `${day}/${month}`;
+      };
+      document.getElementById('pKpiDailyChart').innerHTML = dailyRows.length ? `
+        <svg viewBox="0 0 ${width} ${height}" style="width:100%;height:240px;display:block">
+          ${Array.from({ length: 5 }, (_, index) => {
+            const y = top + (innerHeight * index) / 4;
+            return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" stroke="#e6edf8" stroke-width="1"></line>`;
+          }).join('')}
+          <polyline points="${polyline(approvedPoints)}" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          <polyline points="${polyline(paidPoints)}" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          <polyline points="${polyline(savingsPoints)}" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          ${approvedPoints.map(point => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="#94a3b8"><title>${labelMonthDay(point.item.date)} | Aprovado ${brl(point.item.approved)}</title></circle>`).join('')}
+          ${paidPoints.map(point => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="#2563eb"><title>${labelMonthDay(point.item.date)} | Pago ${brl(point.item.paid)}</title></circle>`).join('')}
+          ${savingsPoints.map(point => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="#22c55e"><title>${labelMonthDay(point.item.date)} | Economia ${brl(point.item.savings)}</title></circle>`).join('')}
+          ${dailyRows.map((item, index) => {
+            const x = dailyRows.length === 1 ? left + innerWidth / 2 : left + ((innerWidth * index) / (dailyRows.length - 1));
+            return `<text x="${x}" y="${height - 12}" text-anchor="middle" fill="#8a97b3" font-size="11" letter-spacing="0.08em">${labelMonthDay(item.date)}</text>`;
+          }).join('')}
+        </svg>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;color:#5f6f8d;font-size:12px">
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:999px;background:#94a3b8;display:inline-block"></span>Valor aprovado</span>
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:999px;background:#2563eb;display:inline-block"></span>Valor pago</span>
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:999px;background:#22c55e;display:inline-block"></span>Economia</span>
+        </div>
+      ` : `<div class="empty-state"><b>Sem economias no mes selecionado.</b>Assim que houver passagens com economia registrada, o grafico aparece aqui.</div>`;
+
+      document.getElementById('pKpiInsights').innerHTML = `
+        <div class="li">
+          <div><b class="link">Resumo do mes</b><div class="lisub">Comparativo entre valor aprovado e valor efetivamente pago apenas dos registros com economia</div></div>
+          <span class="tag ${totalSavings > 0 ? 'ok' : 'neutral'}">${brl(totalSavings)}</span>
+        </div>
+        <div class="li">
+          <div><b class="link">Performance</b><div class="lisub">${savingsRows.length} compra(s) com economia analisadas em ${monthLabel(currentPassagensMonth())}</div></div>
+          <span class="tag neutral">${savingsRate.toFixed(1).replace('.', ',')}%</span>
+        </div>
+      `;
+
+      document.getElementById('pKpiTableCount').textContent = `${savingsRows.length} registro${savingsRows.length === 1 ? '' : 's'} com economia`;
+      document.getElementById('pKpiRows').innerHTML = savingsRows.length ? savingsRows
+        .slice()
+        .sort((a, b) => String(b.dataCompra || '').localeCompare(String(a.dataCompra || '')) || (b.economia || 0) - (a.economia || 0))
+        .map(row => `
+          <tr>
+            <td>${formatDate(row.dataCompra)}</td>
+            <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
+            <td>${escapeHtml(row.nome_obra || '-')}</td>
+            <td><span class="tag neutral">${escapeHtml(row.modalidade || '-')}</span></td>
+            <td class="money">${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
+            <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
+            <td class="money" style="color:#15803d;font-weight:800">${brl(row.economia || 0)}</td>
+          </tr>
+        `).join('')
+        : `<tr><td colspan="7"><div class="empty-state"><b>Nenhuma economia registrada neste mes.</b>Quando o valor pago ficar abaixo do aprovado, os itens aparecem aqui.</div></td></tr>`;
+    }
+
     function passagensRangeLabel(start, end) {
       return start || end ? `${start ? formatDate(start) : 'Inicio'} ate ${end ? formatDate(end) : 'Hoje'}` : 'Mes completo';
     }
@@ -5793,6 +5964,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       renderPassagensTable('pRoadRows', roadRangeRows, 10);
       renderPassagensTable('pHospRows', hospedagemRows, 17);
       renderPassagensTable('pCarRows', carroRows, 13);
+      renderPassagensKpi(monthRows);
 
       renderPassagensRangeSummary('pAirSummary', 'pAirRangeLabel', airRangeRows, pAirStart.value, pAirEnd.value);
       renderPassagensRangeSummary('pRoadSummary', 'pRoadRangeLabel', roadRangeRows, pRoadStart.value, pRoadEnd.value);
