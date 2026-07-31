@@ -893,6 +893,7 @@
                     <th>Valor aprovado</th>
                     <th>Valor pago</th>
                     <th>Economia</th>
+                    <th style="text-align:right">Acoes</th>
                   </tr>
                 </thead>
                 <tbody id="pKpiRows"></tbody>
@@ -5293,7 +5294,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         byDate.set(date, current);
       });
       const dailyRows = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-      const maxDaily = Math.max(1, ...dailyRows.map(item => Math.max(item.approved, item.paid, item.savings)));
+      const maxDaily = Math.max(1, ...dailyRows.map(item => Math.max(item.approved, item.paid)));
       const width = 760;
       const height = 250;
       const left = 40;
@@ -5309,7 +5310,6 @@ AMAURI BARROSO DE MOURA"></textarea>
       });
       const approvedPoints = buildPoints('approved');
       const paidPoints = buildPoints('paid');
-      const savingsPoints = buildPoints('savings');
       const polyline = points => points.map(point => `${point.x},${point.y}`).join(' ');
       const labelMonthDay = value => {
         if (!value) return '-';
@@ -5324,10 +5324,8 @@ AMAURI BARROSO DE MOURA"></textarea>
           }).join('')}
           <polyline points="${polyline(approvedPoints)}" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
           <polyline points="${polyline(paidPoints)}" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
-          <polyline points="${polyline(savingsPoints)}" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
           ${approvedPoints.map(point => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="#94a3b8"><title>${labelMonthDay(point.item.date)} | Aprovado ${brl(point.item.approved)}</title></circle>`).join('')}
           ${paidPoints.map(point => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="#2563eb"><title>${labelMonthDay(point.item.date)} | Pago ${brl(point.item.paid)}</title></circle>`).join('')}
-          ${savingsPoints.map(point => `<circle cx="${point.x}" cy="${point.y}" r="4" fill="#22c55e"><title>${labelMonthDay(point.item.date)} | Economia ${brl(point.item.savings)}</title></circle>`).join('')}
           ${dailyRows.map((item, index) => {
             const x = dailyRows.length === 1 ? left + innerWidth / 2 : left + ((innerWidth * index) / (dailyRows.length - 1));
             return `<text x="${x}" y="${height - 12}" text-anchor="middle" fill="#8a97b3" font-size="11" letter-spacing="0.08em">${labelMonthDay(item.date)}</text>`;
@@ -5336,7 +5334,6 @@ AMAURI BARROSO DE MOURA"></textarea>
         <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;color:#5f6f8d;font-size:12px">
           <span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:999px;background:#94a3b8;display:inline-block"></span>Valor aprovado</span>
           <span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:999px;background:#2563eb;display:inline-block"></span>Valor pago</span>
-          <span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:999px;background:#22c55e;display:inline-block"></span>Economia</span>
         </div>
       ` : `<div class="empty-state"><b>Sem economias no mes selecionado.</b>Assim que houver passagens com economia registrada, o grafico aparece aqui.</div>`;
 
@@ -5364,9 +5361,15 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td class="money">${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
             <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
             <td class="money" style="color:#15803d;font-weight:800">${brl(row.economia || 0)}</td>
+            <td class="actioncell">
+              <div style="display:flex;justify-content:flex-end;gap:8px;white-space:nowrap">
+                <button class="rowact" title="Editar passagem" aria-label="Editar passagem" onclick="event.stopPropagation();editPassagem('${row.key}')">${icon('edit')}</button>
+                <button class="rowact" title="Excluir passagem" aria-label="Excluir passagem" onclick="event.stopPropagation();requestDeletePassagem('${row.key}')">${icon('trash')}</button>
+              </div>
+            </td>
           </tr>
         `).join('')
-        : `<tr><td colspan="7"><div class="empty-state"><b>Nenhuma economia registrada neste mes.</b>Quando o valor pago ficar abaixo do aprovado, os itens aparecem aqui.</div></td></tr>`;
+        : `<tr><td colspan="8"><div class="empty-state"><b>Nenhuma economia registrada neste mes.</b>Quando o valor pago ficar abaixo do aprovado, os itens aparecem aqui.</div></td></tr>`;
     }
 
     function passagensRangeLabel(start, end) {
