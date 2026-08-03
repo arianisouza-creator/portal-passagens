@@ -5135,8 +5135,14 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function togglePassagemExpanded(key) {
-      if (expandedPassagemKeys.has(key)) expandedPassagemKeys.delete(key);
-      else expandedPassagemKeys.add(key);
+      const row = passagensRows.find(item => passagemLegacyKeys(item).includes(String(key || '')));
+      const relatedKeys = row ? passagemLegacyKeys(row) : [String(key || '')];
+      const isOpen = relatedKeys.some(candidate => expandedPassagemKeys.has(candidate));
+      if (isOpen) {
+        relatedKeys.forEach(candidate => expandedPassagemKeys.delete(candidate));
+      } else {
+        relatedKeys.forEach(candidate => expandedPassagemKeys.add(candidate));
+      }
       renderPassagens();
     }
     window.togglePassagemExpanded = togglePassagemExpanded;
