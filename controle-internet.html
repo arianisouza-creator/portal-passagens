@@ -2529,6 +2529,9 @@ AMAURI BARROSO DE MOURA"></textarea>
           valorPago: item.valorPago ?? item.valor_pago ?? '',
           pagoConfirmado: parseBool(item.pagoConfirmado ?? item.pago_confirmado ?? false),
           observacaoInterna: item.observacaoInterna ?? item.observacao_interna ?? '',
+          excluida: parseBool(item.excluida ?? item.deleted ?? false),
+          motivoExclusao: item.motivoExclusao ?? item.motivo_exclusao ?? '',
+          dataExclusao: item.dataExclusao ?? item.data_exclusao ?? '',
           hotelSolicitado: parseBool(item.hotelSolicitado ?? item.hotel_solicitado ?? false),
           carroSolicitado: parseBool(item.carroSolicitado ?? item.carro_solicitado ?? false)
         };
@@ -4756,6 +4759,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       const horarioVolta = complement.horarioVolta || compra.horario_trajeto_fim || '';
       const pagoConfirmado = parseBool(complement.pagoConfirmado);
       const observacao = complement.observacaoInterna || item.observacao || '';
+      const excluida = parseBool(complement.excluida ?? complement.deleted ?? false);
       const economia = valorAprovado != null && valorPago != null && valorPago < valorAprovado ? valorAprovado - valorPago : 0;
       const pending =
         !dataCompra ||
@@ -4784,6 +4788,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         horarioVolta,
         pagoConfirmado,
         observacao,
+        excluida,
         dataPrincipal: passagemDateField(item),
         economia,
         pending
@@ -4807,7 +4812,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function allPassagensData() {
-      return sortPassagensRows(passagensRows.map(buildPassagemRow));
+      return sortPassagensRows(passagensRows.map(buildPassagemRow)).filter(item => !item.excluida);
     }
 
     function currentPassagensData() {
@@ -7026,7 +7031,12 @@ AMAURI BARROSO DE MOURA"></textarea>
         .map(item => item.id);
       const rowIndex = passagensRows.findIndex(item => passagemKey(item) === targetKey);
       if (rowIndex >= 0) passagensRows.splice(rowIndex, 1);
-      delete passagensComplements[targetKey];
+      passagensComplements[targetKey] = {
+        ...(passagensComplements[targetKey] || {}),
+        excluida: true,
+        motivoExclusao: motivo,
+        dataExclusao: new Date().toISOString()
+      };
       for (let index = passagensHospedagens.length - 1; index >= 0; index -= 1) {
         if (passagensHospedagens[index].passagemKey === targetKey) passagensHospedagens.splice(index, 1);
       }
@@ -7040,6 +7050,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       renderPassagens();
       closeModalById('passagensDeleteModal');
       try {
+        await upsertPassagemComplementRemote(targetKey, passagensComplements[targetKey]);
         await deletePassagemRemote(targetKey);
         await Promise.all([
           ...hospedagemIdsToDelete.map(id => deletePassagemHospedagemRemote(id)),
