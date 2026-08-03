@@ -2239,7 +2239,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       return {
         ...remotePayload,
         hitachiCollaborators: mergeByKey(localHitachi, remoteHitachi, item => `${item.monthKey || item.month_key || ''}|${item.empresa || ''}|${normalizePersonName(item.colaborador || '')}`),
-        passagensRows: mergeByKey(localRows, remoteRows, item => `${item.tabela || 'passagens'}:${item.id}`),
+        passagensRows: mergeByKey(localRows, remoteRows, item => String(item.key || `${item.tabela || 'passagens'}:${item.id || ''}`)),
         passagensCreditos: mergeByKey(localCredits, remoteCredits, item => String(item.id || '')),
         passagensComplements: mergeByKey(localComplements, remoteComplements, item => String(item.key || '')),
         passagensHospedagens: mergeByKey(localHospedagens, remoteHospedagens, item => String(item.id || '')),
@@ -2606,7 +2606,16 @@ AMAURI BARROSO DE MOURA"></textarea>
         diaristaMonthEntries: remoteDiaristaEntries,
         hitachiCollaborators: remoteHitachi,
         hitachiCompanyDocs: remoteHitachiCompanyDocs,
-        passagensRows: remotePassagensRows.map(item => ({ ...(item.item || {}) })),
+        passagensRows: remotePassagensRows.map(item => {
+          const rawItem = item.item || {};
+          const tabela = item.tabela || rawItem.tabela || 'passagens';
+          const key = item.key || rawItem.key || `${tabela}:${rawItem.id || ''}`;
+          return {
+            ...rawItem,
+            tabela,
+            key
+          };
+        }),
         passagensComplements: remotePassagensComplements.map(item => ({ key: item.key, ...(item.data || {}) })),
         passagensCreditos: remotePassagensCreditos.map(item => ({ id: item.id, ...(item.data || {}) })),
         passagensHospedagens: remotePassagensHospedagens.map(item => ({ id: item.id, ...(item.data || {}) })),
@@ -2776,13 +2785,19 @@ AMAURI BARROSO DE MOURA"></textarea>
 
     async function upsertPassagemRowRemote(item) {
       if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      const key = passagemKey(item);
+      const tabela = item.tabela || String(key).split(':')[0] || 'passagens';
       await apiRequest('passagens_rows', {
         method: 'POST',
         prefer: 'resolution=merge-duplicates,return=representation',
         body: [{
-          key: `${item.tabela || 'passagens'}:${item.id}`,
-          tabela: item.tabela || 'passagens',
-          item
+          key,
+          tabela,
+          item: {
+            ...item,
+            key,
+            tabela
+          }
         }]
       });
     }
@@ -4675,7 +4690,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function passagemKey(item) {
-      return `${item.tabela || 'passagens'}:${item.id}`;
+      return String(item.key || `${item.tabela || 'passagens'}:${item.id}`);
     }
 
     function passagemCompraDate(item, complement = getPassagemComplement(item)) {
@@ -4742,7 +4757,17 @@ AMAURI BARROSO DE MOURA"></textarea>
       const compra = item.compra || {};
       const modalidade = inferPassagemMode(item, complement);
       const nomeObra = complement.nomeObra || item.nome_obra || '';
-      const centroCusto = complement.centroCusto || item.centro_custo || item.centroCusto || compra.centro_custo || compra.centroCusto || '';
+      const centroCusto =
+        complement.centroCusto ||
+        item.centro_custo ||
+        item.centroCusto ||
+        item.centro_custo_nome ||
+        item.centro_custo_codigo_s1 ||
+        compra.centro_custo ||
+        compra.centroCusto ||
+        compra.centro_custo_nome ||
+        compra.centro_custo_codigo_s1 ||
+        '';
       const valorApi = parseMoney(item.valor_pago) ?? parseMoney(item.valor_aereo) ?? parseMoney(item.valor_rodoviario) ?? parseMoney(item.valor_referencia);
       const valorAprovadoApi = parseMoney(item.valor_aprovado) ?? parseMoney(item.valor_aprovado_rafael) ?? parseMoney(compra.valor_aprovado_rafael) ?? parseMoney(item.valor_referencia);
       const valorAprovadoComplemento = parseMoney(complement.valorAprovado);
@@ -6065,8 +6090,27 @@ AMAURI BARROSO DE MOURA"></textarea>
         if (!rows.length) {
           throw new Error('API Passagens nao retornou registros.');
         }
+        const existingApiRows = passagensRows.filter(item => String(item.tabela || '').toLowerCase() !== 'manual');
+        const syncedRows = rows.map(item => {
+          const existing = existingApiRows.find(localItem =>
+            String(localItem.id || '') === String(item.id || '') &&
+            (
+              String(localItem.tabela || '').toLowerCase() === String(item.tabela || '').toLowerCase() ||
+              !item.tabela ||
+              !localItem.tabela
+            )
+          );
+          const tabela = item.tabela || (existing && existing.tabela) || 'passagens';
+          const key = item.key || (existing && existing.key) || `${tabela}:${item.id || ''}`;
+          return {
+            ...(existing || {}),
+            ...item,
+            tabela,
+            key
+          };
+        });
         const manualRows = passagensRows.filter(item => String(item.tabela || '').toLowerCase() === 'manual');
-        passagensRows.splice(0, passagensRows.length, ...rows, ...manualRows);
+        passagensRows.splice(0, passagensRows.length, ...syncedRows, ...manualRows);
         passagensLastSync = new Date().toLocaleTimeString('pt-BR');
         saveLocalCache();
         renderPassagens();
