@@ -4714,6 +4714,12 @@ AMAURI BARROSO DE MOURA"></textarea>
       return passagemLegacyKeys(item).includes(String(key || ''));
     }
 
+    function resolvePassagemStoredKey(targetKey) {
+      const normalizedKey = String(targetKey || '');
+      const row = passagensRows.find(item => passagemLegacyKeys(item).includes(normalizedKey));
+      return row ? passagemKey(row) : normalizedKey;
+    }
+
     function passagemIsExpanded(row) {
       return passagemLegacyKeys(row).some(key => expandedPassagemKeys.has(key));
     }
@@ -4969,7 +4975,16 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function complementForKey(key) {
-      return passagensComplements[key] || {};
+      const storedKey = resolvePassagemStoredKey(key);
+      if (passagensComplements[storedKey]) return passagensComplements[storedKey];
+      if (passagensComplements[key]) return passagensComplements[key];
+      const legacyKey = Object.keys(passagensComplements).find(candidate => {
+        if (candidate === storedKey || candidate === key) return false;
+        const row = passagensRows.find(item => passagemLegacyKeys(item).includes(candidate));
+        return row && passagemLegacyKeys(row).includes(storedKey);
+      });
+      if (legacyKey) return passagensComplements[legacyKey] || {};
+      return {};
     }
 
     function countDiarias(start, end) {
@@ -6230,8 +6245,9 @@ AMAURI BARROSO DE MOURA"></textarea>
     window.cancelInlineCarroEdit = cancelInlineCarroEdit;
 
     function applyPassagemEdit(targetKey, formData) {
-      const currentComplement = passagensComplements[targetKey] || {};
-      passagensComplements[targetKey] = {
+      const storedKey = resolvePassagemStoredKey(targetKey);
+      const currentComplement = passagensComplements[storedKey] || passagensComplements[targetKey] || {};
+      passagensComplements[storedKey] = {
         ...currentComplement,
         modalidade: formData.modalidade || '',
         nomeObra: formData.nomeObra || '',
@@ -6251,9 +6267,10 @@ AMAURI BARROSO DE MOURA"></textarea>
         pagoConfirmado: Boolean(formData.pagoConfirmado),
         observacaoInterna: formData.observacaoInterna || ''
       };
+      if (storedKey !== targetKey) delete passagensComplements[targetKey];
       const row = passagensRows.find(item => passagemLegacyKeys(item).includes(targetKey));
       if (row) {
-        row.key = targetKey;
+        row.key = storedKey;
         row.nome_obra = formData.nomeObra || row.nome_obra || '';
         row.centro_custo = formData.centroCusto || row.centro_custo || '';
         row.centroCusto = formData.centroCusto || row.centroCusto || '';
@@ -6272,19 +6289,22 @@ AMAURI BARROSO DE MOURA"></textarea>
         row.valor_pago = formData.valorPago || row.valor_pago || '';
         row.observacao = formData.observacaoInterna || row.observacao || '';
       }
-      return currentComplement;
+      return {
+        currentComplement,
+        storedKey
+      };
     }
 
     async function saveInlinePassagemEdit(targetKey, formId) {
       const form = document.getElementById(formId);
       if (!form) return;
       const formData = Object.fromEntries(new FormData(form).entries());
-      const currentComplement = applyPassagemEdit(targetKey, formData);
+      const { currentComplement, storedKey } = applyPassagemEdit(targetKey, formData);
       editingPassagemKey = '';
       saveLocalCache();
       try {
-        await upsertPassagemComplementRemote(targetKey, passagensComplements[targetKey] || currentComplement);
-        const baseRow = passagensRows.find(item => passagemKey(item) === targetKey);
+        await upsertPassagemComplementRemote(storedKey, passagensComplements[storedKey] || currentComplement);
+        const baseRow = passagensRows.find(item => passagemLegacyKeys(item).includes(storedKey) || passagemLegacyKeys(item).includes(targetKey));
         if (baseRow) await upsertPassagemRowRemote(baseRow);
       } catch (error) {
         console.error(error);
@@ -7035,12 +7055,12 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (!editingPassagemKey) return;
       const targetKey = editingPassagemKey;
       const formData = Object.fromEntries(new FormData(event.currentTarget).entries());
-      const currentComplement = applyPassagemEdit(targetKey, formData);
+      const { currentComplement, storedKey } = applyPassagemEdit(targetKey, formData);
       editingPassagemKey = '';
       saveLocalCache();
       try {
-        await upsertPassagemComplementRemote(targetKey, passagensComplements[targetKey] || currentComplement);
-        const baseRow = passagensRows.find(item => passagemLegacyKeys(item).includes(targetKey));
+        await upsertPassagemComplementRemote(storedKey, passagensComplements[storedKey] || currentComplement);
+        const baseRow = passagensRows.find(item => passagemLegacyKeys(item).includes(storedKey) || passagemLegacyKeys(item).includes(targetKey));
         if (baseRow) await upsertPassagemRowRemote(baseRow);
       } catch (error) {
         console.error(error);
