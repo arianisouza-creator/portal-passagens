@@ -5183,9 +5183,9 @@ AMAURI BARROSO DE MOURA"></textarea>
       }));
     }
 
-    function detailPassagemGrid(row) {
+    function detailPassagemGrid(row, scope = 'default') {
       if (passagemKeyMatches(row, editingPassagemKey)) {
-        const formId = `inline-passagem-${safeDomId(row.key)}`;
+        const formId = `inline-passagem-${safeDomId(scope)}-${safeDomId(row.key)}`;
         return `
           <div class="detail-box">
             <form id="${formId}" class="detail-grid-passagem">
@@ -5900,7 +5900,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
             <td>${row.pedido || '<span class="pending">Pendente</span>'}</td>
           </tr>
-          ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row)}</td></tr>` : ''}
+          ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row, 'overview')}</td></tr>` : ''}
         `).join('');
         return;
       }
@@ -5918,7 +5918,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td class="money">${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
             <td>${row.pedido || '<span class="pending">Pendente</span>'}</td>
           </tr>
-          ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row)}</td></tr>` : ''}
+          ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row, targetId)}</td></tr>` : ''}
         `).join('');
         return;
       }
