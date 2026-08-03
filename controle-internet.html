@@ -1823,6 +1823,8 @@ AMAURI BARROSO DE MOURA"></textarea>
             <option value="Rodoviario">Rodoviario</option>
           </select>
         </label>
+        <label>Obra<input name="nomeObra" placeholder="Ex.: LMS"></label>
+        <label>Centro de custo<input name="centroCusto" placeholder="Ex.: ADM"></label>
         <label>Numero do pedido<input name="numeroPedido" placeholder="Ex.: 110766"></label>
         <label>Origem<input name="origem" placeholder="Ex.: GRU"></label>
         <label>Destino<input name="destino" placeholder="Ex.: AMS"></label>
@@ -6910,6 +6912,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       passagensComplements[targetKey] = {
         ...currentComplement,
         modalidade: formData.modalidade || '',
+        nomeObra: formData.nomeObra || '',
+        centroCusto: formData.centroCusto || '',
         dataCompra: formData.dataCompra || '',
         numeroPedido: formData.numeroPedido || '',
         origem: formData.origem || '',
@@ -6928,6 +6932,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (targetKey.startsWith('manual:')) {
         const row = passagensRows.find(item => passagemKey(item) === targetKey);
         if (row) {
+          row.nome_obra = formData.nomeObra || row.nome_obra || '';
+          row.centro_custo = formData.centroCusto || row.centro_custo || '';
           row.data_compra = formData.dataCompra || row.data_compra || '';
           row.data_prevista = formData.dataIda || row.data_prevista || '';
           row.data_ida = formData.dataIda || row.data_ida || '';
