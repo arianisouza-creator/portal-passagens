@@ -4733,6 +4733,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       const complement = getPassagemComplement(item);
       const compra = item.compra || {};
       const modalidade = inferPassagemMode(item, complement);
+      const nomeObra = complement.nomeObra || item.nome_obra || '';
+      const centroCusto = complement.centroCusto || item.centro_custo || item.centroCusto || compra.centro_custo || compra.centroCusto || '';
       const valorApi = parseMoney(item.valor_pago) ?? parseMoney(item.valor_aereo) ?? parseMoney(item.valor_rodoviario) ?? parseMoney(item.valor_referencia);
       const valorAprovadoApi = parseMoney(item.valor_aprovado) ?? parseMoney(item.valor_aprovado_rafael) ?? parseMoney(compra.valor_aprovado_rafael) ?? parseMoney(item.valor_referencia);
       const valorAprovadoComplemento = parseMoney(complement.valorAprovado);
@@ -4762,6 +4764,8 @@ AMAURI BARROSO DE MOURA"></textarea>
         ...item,
         key: passagemKey(item),
         modalidade,
+        nome_obra: nomeObra,
+        centroCusto,
         dataCompra,
         dataCompraMoment: passagemCompraMoment(item, complement),
         valorAprovado,
@@ -5061,6 +5065,8 @@ AMAURI BARROSO DE MOURA"></textarea>
             <form id="${formId}" class="detail-grid-passagem">
               <div class="ditem"><span>Data da compra</span><input name="dataCompra" type="date" value="${escapeHtml(row.dataCompra || '')}"></div>
               <div class="ditem"><span>Modalidade</span><select name="modalidade"><option value="Aereo" ${row.modalidade === 'Aereo' ? 'selected' : ''}>Aereo</option><option value="Rodoviario" ${row.modalidade === 'Rodoviario' ? 'selected' : ''}>Rodoviario</option></select></div>
+              <div class="ditem"><span>Obra</span><input name="nomeObra" value="${escapeHtml(row.nome_obra || '')}"></div>
+              <div class="ditem"><span>Centro de custo</span><input name="centroCusto" value="${escapeHtml(row.centroCusto || '')}"></div>
               <div class="ditem"><span>Numero do pedido</span><input name="numeroPedido" value="${escapeHtml(row.pedido || '')}"></div>
               <div class="ditem"><span>Origem</span><input name="origem" value="${escapeHtml(row.origem || '')}"></div>
               <div class="ditem"><span>Destino</span><input name="destino" value="${escapeHtml(row.destino || '')}"></div>
@@ -5085,6 +5091,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       return `
         <div class="detail-box">
           <div class="detail-grid-passagem">
+            <div class="ditem"><span>Obra</span><b>${valueText(row.nome_obra)}</b></div>
+            <div class="ditem"><span>Centro de custo</span><b>${valueText(row.centroCusto)}</b></div>
             <div class="ditem"><span>Data de ida</span><b>${formatDate(row.dataIda)}</b></div>
             <div class="ditem"><span>Data de volta</span><b>${formatDate(row.dataVolta)}</b></div>
             <div class="ditem"><span>Horario de ida</span><b>${valueText(row.horarioIda)}</b></div>
@@ -6097,6 +6105,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       passagensComplements[targetKey] = {
         ...currentComplement,
         modalidade: formData.modalidade || '',
+        nomeObra: formData.nomeObra || '',
+        centroCusto: formData.centroCusto || '',
         dataCompra: formData.dataCompra || '',
         numeroPedido: formData.numeroPedido || '',
         origem: formData.origem || '',
@@ -6115,6 +6125,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (targetKey.startsWith('manual:')) {
         const row = passagensRows.find(item => passagemKey(item) === targetKey);
         if (row) {
+          row.nome_obra = formData.nomeObra || row.nome_obra || '';
+          row.centro_custo = formData.centroCusto || row.centro_custo || '';
           row.data_compra = formData.dataCompra || row.data_compra || '';
           row.data_prevista = formData.dataIda || row.data_prevista || '';
           row.data_ida = formData.dataIda || row.data_ida || '';
