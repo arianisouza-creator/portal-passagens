@@ -5765,7 +5765,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
       if (targetId === 'pRows') {
         body.innerHTML = rows.map(row => `
-          <tr class="compact-row ${row.pagoConfirmado ? 'paid-row' : ''}">
+          <tr class="compact-row row-main-click ${row.pagoConfirmado ? 'paid-row' : ''}" onclick="togglePassagemExpanded('${row.key}')">
             <td class="actioncell">${buildPassagemActions(row, false)}</td>
             <td><span class="company">${row.nome_colab || row.nome || '-'}</span></td>
             <td>${row.nome_funcao || '-'}</td>
@@ -5777,6 +5777,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
             <td>${row.pedido || '<span class="pending">Pendente</span>'}</td>
           </tr>
+          ${expandedPassagemKeys.has(row.key) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row)}</td></tr>` : ''}
         `).join('');
         return;
       }
