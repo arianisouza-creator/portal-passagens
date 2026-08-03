@@ -4693,6 +4693,23 @@ AMAURI BARROSO DE MOURA"></textarea>
       return String(item.key || `${item.tabela || 'passagens'}:${item.id}`);
     }
 
+    function passagemLegacyKeys(item) {
+      const keys = new Set();
+      const id = String(item && item.id != null ? item.id : '');
+      const tabela = String((item && item.tabela) || '').trim();
+      const explicitKey = String((item && item.key) || '').trim();
+      if (explicitKey) keys.add(explicitKey);
+      if (id) {
+        if (tabela) keys.add(`${tabela}:${id}`);
+        keys.add(`passagens:${id}`);
+        keys.add(`cotacao_itens:${id}`);
+        keys.add(`folga:${id}`);
+        keys.add(`transferencia_obra:${id}`);
+        keys.add(`desmobilizacao:${id}`);
+      }
+      return [...keys].filter(Boolean);
+    }
+
     function passagemCompraDate(item, complement = getPassagemComplement(item)) {
       return normalizeDateValue(
         complement.dataCompra ||
@@ -4734,7 +4751,17 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function getPassagemComplement(item) {
-      return passagensComplements[passagemKey(item)] || {};
+      const primaryKey = passagemKey(item);
+      if (passagensComplements[primaryKey]) return passagensComplements[primaryKey];
+      const legacyKey = passagemLegacyKeys(item).find(key => passagensComplements[key]);
+      if (legacyKey) {
+        passagensComplements[primaryKey] = {
+          ...passagensComplements[legacyKey]
+        };
+        if (legacyKey !== primaryKey) delete passagensComplements[legacyKey];
+        return passagensComplements[primaryKey];
+      }
+      return {};
     }
 
     function inferPassagemMode(item, complement = getPassagemComplement(item)) {
@@ -6092,14 +6119,12 @@ AMAURI BARROSO DE MOURA"></textarea>
         }
         const existingApiRows = passagensRows.filter(item => String(item.tabela || '').toLowerCase() !== 'manual');
         const syncedRows = rows.map(item => {
-          const existing = existingApiRows.find(localItem =>
-            String(localItem.id || '') === String(item.id || '') &&
-            (
-              String(localItem.tabela || '').toLowerCase() === String(item.tabela || '').toLowerCase() ||
-              !item.tabela ||
-              !localItem.tabela
-            )
-          );
+          const existing = existingApiRows.find(localItem => {
+            const localKeys = passagemLegacyKeys(localItem);
+            const apiKeys = passagemLegacyKeys(item);
+            if (localKeys.some(key => apiKeys.includes(key))) return true;
+            return String(localItem.id || '') === String(item.id || '');
+          });
           const tabela = item.tabela || (existing && existing.tabela) || 'passagens';
           const key = item.key || (existing && existing.key) || `${tabela}:${item.id || ''}`;
           return {
@@ -6177,17 +6202,26 @@ AMAURI BARROSO DE MOURA"></textarea>
         pagoConfirmado: Boolean(formData.pagoConfirmado),
         observacaoInterna: formData.observacaoInterna || ''
       };
-      if (targetKey.startsWith('manual:')) {
-        const row = passagensRows.find(item => passagemKey(item) === targetKey);
-        if (row) {
-          row.nome_obra = formData.nomeObra || row.nome_obra || '';
-          row.centro_custo = formData.centroCusto || row.centro_custo || '';
-          row.data_compra = formData.dataCompra || row.data_compra || '';
-          row.data_prevista = formData.dataIda || row.data_prevista || '';
-          row.data_ida = formData.dataIda || row.data_ida || '';
-          row.data_ida_volta = formData.dataVolta || row.data_ida_volta || '';
-          row.observacao = formData.observacaoInterna || row.observacao || '';
-        }
+      const row = passagensRows.find(item => passagemLegacyKeys(item).includes(targetKey));
+      if (row) {
+        row.key = targetKey;
+        row.nome_obra = formData.nomeObra || row.nome_obra || '';
+        row.centro_custo = formData.centroCusto || row.centro_custo || '';
+        row.centroCusto = formData.centroCusto || row.centroCusto || '';
+        row.data_compra = formData.dataCompra || row.data_compra || '';
+        row.data_prevista = formData.dataIda || row.data_prevista || '';
+        row.data_ida = formData.dataIda || row.data_ida || '';
+        row.data_ida_volta = formData.dataVolta || row.data_ida_volta || '';
+        row.numero_pedido = formData.numeroPedido || row.numero_pedido || '';
+        row.localizador = formData.localizador || row.localizador || '';
+        row.companhia = formData.companhia || row.companhia || '';
+        row.origem = formData.origem || row.origem || '';
+        row.destino = formData.destino || row.destino || '';
+        row.horario_ida = formData.horarioIda || row.horario_ida || '';
+        row.horario_volta = formData.horarioVolta || row.horario_volta || '';
+        row.valor_aprovado = formData.valorAprovado || row.valor_aprovado || '';
+        row.valor_pago = formData.valorPago || row.valor_pago || '';
+        row.observacao = formData.observacaoInterna || row.observacao || '';
       }
       return currentComplement;
     }
@@ -6952,44 +6986,12 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (!editingPassagemKey) return;
       const targetKey = editingPassagemKey;
       const formData = Object.fromEntries(new FormData(event.currentTarget).entries());
-      const currentComplement = passagensComplements[targetKey] || {};
-      passagensComplements[targetKey] = {
-        ...currentComplement,
-        modalidade: formData.modalidade || '',
-        nomeObra: formData.nomeObra || '',
-        centroCusto: formData.centroCusto || '',
-        dataCompra: formData.dataCompra || '',
-        numeroPedido: formData.numeroPedido || '',
-        origem: formData.origem || '',
-        destino: formData.destino || '',
-        dataIda: formData.dataIda || '',
-        dataVolta: formData.dataVolta || '',
-        horarioIda: formData.horarioIda || '',
-        horarioVolta: formData.horarioVolta || '',
-        companhia: formData.companhia || '',
-        localizador: formData.localizador || '',
-        valorAprovado: formData.valorAprovado || '',
-        valorPago: formData.valorPago || '',
-        pagoConfirmado: Boolean(formData.pagoConfirmado),
-        observacaoInterna: formData.observacaoInterna || ''
-      };
-      if (targetKey.startsWith('manual:')) {
-        const row = passagensRows.find(item => passagemKey(item) === targetKey);
-        if (row) {
-          row.nome_obra = formData.nomeObra || row.nome_obra || '';
-          row.centro_custo = formData.centroCusto || row.centro_custo || '';
-          row.data_compra = formData.dataCompra || row.data_compra || '';
-          row.data_prevista = formData.dataIda || row.data_prevista || '';
-          row.data_ida = formData.dataIda || row.data_ida || '';
-          row.data_ida_volta = formData.dataVolta || row.data_ida_volta || '';
-          row.observacao = formData.observacaoInterna || row.observacao || '';
-        }
-      }
+      const currentComplement = applyPassagemEdit(targetKey, formData);
       editingPassagemKey = '';
       saveLocalCache();
       try {
         await upsertPassagemComplementRemote(targetKey, passagensComplements[targetKey] || currentComplement);
-        const baseRow = passagensRows.find(item => passagemKey(item) === targetKey);
+        const baseRow = passagensRows.find(item => passagemLegacyKeys(item).includes(targetKey));
         if (baseRow) await upsertPassagemRowRemote(baseRow);
       } catch (error) {
         console.error(error);
