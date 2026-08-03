@@ -4710,6 +4710,22 @@ AMAURI BARROSO DE MOURA"></textarea>
       return [...keys].filter(Boolean);
     }
 
+    function passagemKeyMatches(item, key) {
+      return passagemLegacyKeys(item).includes(String(key || ''));
+    }
+
+    function passagemIsExpanded(row) {
+      return passagemLegacyKeys(row).some(key => expandedPassagemKeys.has(key));
+    }
+
+    function markPassagemExpanded(rowOrKey) {
+      if (typeof rowOrKey === 'string') {
+        expandedPassagemKeys.add(rowOrKey);
+        return;
+      }
+      passagemLegacyKeys(rowOrKey).forEach(key => expandedPassagemKeys.add(key));
+    }
+
     function passagemCompraDate(item, complement = getPassagemComplement(item)) {
       return normalizeDateValue(
         complement.dataCompra ||
@@ -5153,7 +5169,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function detailPassagemGrid(row) {
-      if (editingPassagemKey === row.key) {
+      if (passagemKeyMatches(row, editingPassagemKey)) {
         const formId = `inline-passagem-${safeDomId(row.key)}`;
         return `
           <div class="detail-box">
@@ -5843,7 +5859,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         ${includeSelection ? `<button class="rowflag ${passagensSelectedKeys.has(row.key) ? 'active green' : ''}" type="button" title="Selecionar para fechamento" aria-label="Selecionar para fechamento" onclick="event.stopPropagation();togglePassagemSelection('${row.key}')">${icon('checkSquare')}</button>` : ''}
         <button class="rowflag hotel ${parseBool(complement.hotelSolicitado) ? 'active' : ''}" type="button" title="Enviar para hospedagem" aria-label="Enviar para hospedagem" onclick="event.stopPropagation();togglePassagemFeature('${row.key}','hotel')">${icon('bed')}</button>
         <button class="rowflag car ${parseBool(complement.carroSolicitado) ? 'active' : ''}" type="button" title="Enviar para carros" aria-label="Enviar para carros" onclick="event.stopPropagation();togglePassagemFeature('${row.key}','carro')">${icon('car')}</button>
-        <button class="rowflag" type="button" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();togglePassagemExpanded('${row.key}')">${icon(expandedPassagemKeys.has(row.key) ? 'chevronDown' : 'chevronRight')}</button>
+        <button class="rowflag" type="button" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();togglePassagemExpanded('${row.key}')">${icon(passagemIsExpanded(row) ? 'chevronDown' : 'chevronRight')}</button>
         <button class="rowact" title="Complementar passagem" aria-label="Complementar passagem" onclick="event.stopPropagation();editPassagem('${row.key}')">${icon('edit')}</button>
         <button class="rowact" title="Excluir passagem" aria-label="Excluir passagem" onclick="event.stopPropagation();requestDeletePassagem('${row.key}')">${icon('trash')}</button>
       </div>`;
@@ -5869,7 +5885,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
             <td>${row.pedido || '<span class="pending">Pendente</span>'}</td>
           </tr>
-          ${expandedPassagemKeys.has(row.key) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row)}</td></tr>` : ''}
+          ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row)}</td></tr>` : ''}
         `).join('');
         return;
       }
@@ -5887,7 +5903,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td class="money">${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
             <td>${row.pedido || '<span class="pending">Pendente</span>'}</td>
           </tr>
-          ${expandedPassagemKeys.has(row.key) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row)}</td></tr>` : ''}
+          ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row)}</td></tr>` : ''}
         `).join('');
         return;
       }
@@ -6189,8 +6205,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       const item = currentPassagensData().find(row => row.key === key) || passagensRows.map(buildPassagemRow).find(row => row.key === key);
       if (!item) return;
       if (!requestProtectedEdit('esta passagem')) return;
-      editingPassagemKey = key;
-      if (!expandedPassagemKeys.has(key)) expandedPassagemKeys.add(key);
+      editingPassagemKey = item.key || key;
+      markPassagemExpanded(item);
       renderPassagens();
     }
     window.editPassagem = editPassagem;
