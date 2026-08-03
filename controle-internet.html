@@ -2592,7 +2592,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         apiRequest('diarista_month_entries', { query: 'select=*&order=month_key.asc,diarista_id.asc' }),
         apiRequest('hitachi_collaborators', { query: 'select=*&order=month_key.desc,empresa.asc,colaborador.asc' }),
         apiRequest('hitachi_company_docs', { query: 'select=*&order=month_key.desc,empresa.asc,documento.asc' }),
-        PASSAGENS_API_ONLY ? Promise.resolve([]) : apiRequest('passagens_rows', { query: 'select=*&order=updated_at.asc' }),
+        apiRequest('passagens_rows', { query: 'select=*&order=updated_at.asc' }),
         apiRequest('passagens_complements', { query: 'select=*&order=updated_at.asc' }),
         apiRequest('passagens_creditos', { query: 'select=*&order=updated_at.asc' }),
         apiRequest('passagens_hospedagens', { query: 'select=*&order=updated_at.asc' }),
@@ -2784,7 +2784,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     async function upsertPassagemRowRemote(item) {
-      if (!REMOTE_ENABLED || PASSAGENS_API_ONLY) return;
+      if (!REMOTE_ENABLED) return;
       const key = passagemKey(item);
       const tabela = item.tabela || String(key).split(':')[0] || 'passagens';
       await apiRequest('passagens_rows', {
@@ -4849,6 +4849,39 @@ AMAURI BARROSO DE MOURA"></textarea>
       };
     }
 
+    function preserveEditablePassagemFields(apiItem, existingItem = null) {
+      if (!existingItem) return { ...apiItem };
+      const merged = {
+        ...apiItem
+      };
+      const editableFields = [
+        'nome_obra',
+        'centro_custo',
+        'centroCusto',
+        'data_compra',
+        'data_prevista',
+        'data_ida',
+        'data_ida_volta',
+        'numero_pedido',
+        'localizador',
+        'companhia',
+        'origem',
+        'destino',
+        'horario_ida',
+        'horario_volta',
+        'valor_aprovado',
+        'valor_pago',
+        'observacao'
+      ];
+      editableFields.forEach(field => {
+        const value = existingItem[field];
+        if (value != null && String(value) !== '') {
+          merged[field] = value;
+        }
+      });
+      return merged;
+    }
+
     function sortPassagensRows(rows) {
       return rows.slice().sort((left, right) => {
         const leftMoment = String(left.dataCompraMoment || '');
@@ -6127,9 +6160,9 @@ AMAURI BARROSO DE MOURA"></textarea>
           });
           const tabela = item.tabela || (existing && existing.tabela) || 'passagens';
           const key = item.key || (existing && existing.key) || `${tabela}:${item.id || ''}`;
+          const mergedItem = preserveEditablePassagemFields(item, existing);
           return {
-            ...(existing || {}),
-            ...item,
+            ...mergedItem,
             tabela,
             key
           };
