@@ -2511,7 +2511,10 @@ AMAURI BARROSO DE MOURA"></textarea>
       (payload.passagensComplements || payload.passagens_complements || []).forEach(item => {
         if (!item.key) return;
         passagensComplements[item.key] = {
+          ...item,
           modalidade: item.modalidade || '',
+          nomeObra: item.nomeObra ?? item.nome_obra ?? '',
+          centroCusto: item.centroCusto ?? item.centro_custo ?? '',
           dataCompra: item.dataCompra ?? item.data_compra ?? '',
           origem: item.origem || '',
           destino: item.destino || '',
