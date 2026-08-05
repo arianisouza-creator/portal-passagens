@@ -5165,7 +5165,7 @@ AMAURI BARROSO DE MOURA"></textarea>
 
     function valueText(value, formatter = value => value) {
       if (value == null || value === '') return '-';
-      return formatter(value);
+      return escapeHtml(formatter(value));
     }
 
     function filterPassagensByHeader(rows, filterMap) {
@@ -5379,7 +5379,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       const max = summary.obraEntries.length ? summary.obraEntries[0].total : 0;
       container.innerHTML = summary.obraEntries.length ? summary.obraEntries.map(item => `
         <div class="baritem">
-          <div class="barlabel"><span>${item.obra}</span><b>${brl(item.total)}</b></div>
+          <div class="barlabel"><span>${escapeHtml(item.obra)}</span><b>${brl(item.total)}</b></div>
           <div class="track"><div class="fill" style="width:${max ? (item.total / max) * 100 : 0}%"></div></div>
         </div>
       `).join('') : `<div class="empty-state"><b>${emptyMessage}</b>Ajuste o intervalo de datas para consultar outro periodo.</div>`;
@@ -5876,13 +5876,14 @@ AMAURI BARROSO DE MOURA"></textarea>
 
     function buildPassagemActions(row, includeSelection = true) {
       const complement = complementForKey(row.key);
+      const safeKey = escapeHtml(row.key);
       return `<div class="actionstack">
-        ${includeSelection ? `<button class="rowflag ${passagensSelectedKeys.has(row.key) ? 'active green' : ''}" type="button" title="Selecionar para fechamento" aria-label="Selecionar para fechamento" onclick="event.stopPropagation();togglePassagemSelection('${row.key}')">${icon('checkSquare')}</button>` : ''}
-        <button class="rowflag hotel ${parseBool(complement.hotelSolicitado) ? 'active' : ''}" type="button" title="Enviar para hospedagem" aria-label="Enviar para hospedagem" onclick="event.stopPropagation();togglePassagemFeature('${row.key}','hotel')">${icon('bed')}</button>
-        <button class="rowflag car ${parseBool(complement.carroSolicitado) ? 'active' : ''}" type="button" title="Enviar para carros" aria-label="Enviar para carros" onclick="event.stopPropagation();togglePassagemFeature('${row.key}','carro')">${icon('car')}</button>
-        <button class="rowflag" type="button" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();togglePassagemExpanded('${row.key}')">${icon(passagemIsExpanded(row) ? 'chevronDown' : 'chevronRight')}</button>
-        <button class="rowact" title="Complementar passagem" aria-label="Complementar passagem" onclick="event.stopPropagation();editPassagem('${row.key}')">${icon('edit')}</button>
-        <button class="rowact" title="Excluir passagem" aria-label="Excluir passagem" onclick="event.stopPropagation();requestDeletePassagem('${row.key}')">${icon('trash')}</button>
+        ${includeSelection ? `<button class="rowflag ${passagensSelectedKeys.has(row.key) ? 'active green' : ''}" type="button" title="Selecionar para fechamento" aria-label="Selecionar para fechamento" onclick="event.stopPropagation();togglePassagemSelection('${safeKey}')">${icon('checkSquare')}</button>` : ''}
+        <button class="rowflag hotel ${parseBool(complement.hotelSolicitado) ? 'active' : ''}" type="button" title="Enviar para hospedagem" aria-label="Enviar para hospedagem" onclick="event.stopPropagation();togglePassagemFeature('${safeKey}','hotel')">${icon('bed')}</button>
+        <button class="rowflag car ${parseBool(complement.carroSolicitado) ? 'active' : ''}" type="button" title="Enviar para carros" aria-label="Enviar para carros" onclick="event.stopPropagation();togglePassagemFeature('${safeKey}','carro')">${icon('car')}</button>
+        <button class="rowflag" type="button" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();togglePassagemExpanded('${safeKey}')">${icon(passagemIsExpanded(row) ? 'chevronDown' : 'chevronRight')}</button>
+        <button class="rowact" title="Complementar passagem" aria-label="Complementar passagem" onclick="event.stopPropagation();editPassagem('${safeKey}')">${icon('edit')}</button>
+        <button class="rowact" title="Excluir passagem" aria-label="Excluir passagem" onclick="event.stopPropagation();requestDeletePassagem('${safeKey}')">${icon('trash')}</button>
       </div>`;
     }
 
@@ -5894,17 +5895,17 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
       if (targetId === 'pRows') {
         body.innerHTML = rows.map(row => `
-          <tr class="compact-row row-main-click ${row.pagoConfirmado ? 'paid-row' : ''}" onclick="togglePassagemExpanded('${row.key}')">
+          <tr class="compact-row row-main-click ${row.pagoConfirmado ? 'paid-row' : ''}" onclick="togglePassagemExpanded('${escapeHtml(row.key)}')">
             <td class="actioncell">${buildPassagemActions(row, false)}</td>
-            <td><span class="company">${row.nome_colab || row.nome || '-'}</span></td>
-            <td>${row.nome_funcao || '-'}</td>
-            <td>${row.tipo || '-'}</td>
-            <td>${row.nome_obra || '-'}</td>
-            <td><span class="tag ${row.modalidade === 'A definir' ? 'warn' : 'ok'}">${row.modalidade}</span></td>
+            <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
+            <td>${escapeHtml(row.nome_funcao || '-')}</td>
+            <td>${escapeHtml(row.tipo || '-')}</td>
+            <td>${escapeHtml(row.nome_obra || '-')}</td>
+            <td><span class="tag ${row.modalidade === 'A definir' ? 'warn' : 'ok'}">${escapeHtml(row.modalidade)}</span></td>
             <td>${formatDate(row.dataCompra)}</td>
-            <td>${row.localizador || '-'}</td>
+            <td>${escapeHtml(row.localizador || '-')}</td>
             <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
-            <td>${row.pedido || '<span class="pending">Pendente</span>'}</td>
+            <td>${row.pedido ? escapeHtml(row.pedido) : '<span class="pending">Pendente</span>'}</td>
           </tr>
           ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row, 'overview')}</td></tr>` : ''}
         `).join('');
@@ -5912,17 +5913,17 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
       if (targetId === 'pAirRows' || targetId === 'pRoadRows') {
         body.innerHTML = rows.map(row => `
-          <tr class="compact-row row-main-click ${row.pagoConfirmado ? 'paid-row' : ''}" onclick="togglePassagemExpanded('${row.key}')">
+          <tr class="compact-row row-main-click ${row.pagoConfirmado ? 'paid-row' : ''}" onclick="togglePassagemExpanded('${escapeHtml(row.key)}')">
             <td class="actioncell">${buildPassagemActions(row, true)}</td>
-            <td><span class="company">${row.nome_colab || row.nome || '-'}</span></td>
-            <td>${row.nome_funcao || '-'}</td>
-            <td>${row.tipo || '-'}</td>
-            <td>${row.nome_obra || '-'}</td>
+            <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
+            <td>${escapeHtml(row.nome_funcao || '-')}</td>
+            <td>${escapeHtml(row.tipo || '-')}</td>
+            <td>${escapeHtml(row.nome_obra || '-')}</td>
             <td>${formatDate(row.dataCompra)}</td>
-            <td>${row.localizador || '-'}</td>
+            <td>${escapeHtml(row.localizador || '-')}</td>
             <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
             <td class="money">${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
-            <td>${row.pedido || '<span class="pending">Pendente</span>'}</td>
+            <td>${row.pedido ? escapeHtml(row.pedido) : '<span class="pending">Pendente</span>'}</td>
           </tr>
           ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row, targetId)}</td></tr>` : ''}
         `).join('');
@@ -5930,32 +5931,32 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
       if (targetId === 'pHospRows') {
         body.innerHTML = rows.map(item => `
-          <tr class="compact-row row-main-click ${item.pago ? 'paid-row' : ''}" onclick="toggleExpandedEntity('hosp','${item.id}')">
+          <tr class="compact-row row-main-click ${item.pago ? 'paid-row' : ''}" onclick="toggleExpandedEntity('hosp','${escapeHtml(item.id)}')">
             <td class="actioncell">
               <div class="actionstack">
-                <button class="rowflag ${item.pago ? 'active green' : ''}" type="button" title="Marcar como pago" aria-label="Marcar como pago" onclick="event.stopPropagation();toggleHospedagemPaid('${item.id}')">${icon('checkSquare')}</button>
-                <button class="rowflag" type="button" title="Gerar PDF" aria-label="Gerar PDF" onclick="event.stopPropagation();printHospedagemPdf('${item.id}')">${icon('printer')}</button>
-                <button class="rowflag" type="button" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();toggleExpandedEntity('hosp','${item.id}')">${icon(isExpandedEntity('hosp', item.id) ? 'chevronDown' : 'chevronRight')}</button>
-                <button class="rowact" title="Editar hospedagem" aria-label="Editar hospedagem" onclick="event.stopPropagation();editHospedagem('${item.id}')">${icon('edit')}</button>
-                <button class="rowact" title="Excluir hospedagem" aria-label="Excluir hospedagem" onclick="event.stopPropagation();deleteHospedagem('${item.id}')">${icon('trash')}</button>
+                <button class="rowflag ${item.pago ? 'active green' : ''}" type="button" title="Marcar como pago" aria-label="Marcar como pago" onclick="event.stopPropagation();toggleHospedagemPaid('${escapeHtml(item.id)}')">${icon('checkSquare')}</button>
+                <button class="rowflag" type="button" title="Gerar PDF" aria-label="Gerar PDF" onclick="event.stopPropagation();printHospedagemPdf('${escapeHtml(item.id)}')">${icon('printer')}</button>
+                <button class="rowflag" type="button" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();toggleExpandedEntity('hosp','${escapeHtml(item.id)}')">${icon(isExpandedEntity('hosp', item.id) ? 'chevronDown' : 'chevronRight')}</button>
+                <button class="rowact" title="Editar hospedagem" aria-label="Editar hospedagem" onclick="event.stopPropagation();editHospedagem('${escapeHtml(item.id)}')">${icon('edit')}</button>
+                <button class="rowact" title="Excluir hospedagem" aria-label="Excluir hospedagem" onclick="event.stopPropagation();deleteHospedagem('${escapeHtml(item.id)}')">${icon('trash')}</button>
               </div>
             </td>
-            <td><span class="company">${item.nome || '-'}</span></td>
-            <td>${item.obra || '-'}</td>
-            <td>${item.cartaoOuFaturado || '-'}</td>
-            <td>${item.hotel || '-'}</td>
-            <td>${item.cidade || '-'}</td>
+            <td><span class="company">${escapeHtml(item.nome || '-')}</span></td>
+            <td>${escapeHtml(item.obra || '-')}</td>
+            <td>${escapeHtml(item.cartaoOuFaturado || '-')}</td>
+            <td>${escapeHtml(item.hotel || '-')}</td>
+            <td>${escapeHtml(item.cidade || '-')}</td>
             <td>${formatDate(item.checkIn)}</td>
             <td>${formatDate(item.checkOut)}</td>
-            <td>${item.numeroDiarias || '-'}</td>
-            <td>${item.valorDiaria || '-'}</td>
-            <td>${item.valorTotalDiarias || '-'}</td>
-            <td>${item.valorTotal || '-'}</td>
-            <td>${item.itinerario || '-'}</td>
-            <td>${item.motivo || '-'}</td>
-            <td>${item.numeroPedido || '-'}</td>
-            <td>${item.statusPedido || 'Aguardando pedido'}</td>
-            <td>${item.observacao || '-'}</td>
+            <td>${escapeHtml(item.numeroDiarias || '-')}</td>
+            <td>${escapeHtml(item.valorDiaria || '-')}</td>
+            <td>${escapeHtml(item.valorTotalDiarias || '-')}</td>
+            <td>${escapeHtml(item.valorTotal || '-')}</td>
+            <td>${escapeHtml(item.itinerario || '-')}</td>
+            <td>${escapeHtml(item.motivo || '-')}</td>
+            <td>${escapeHtml(item.numeroPedido || '-')}</td>
+            <td>${escapeHtml(item.statusPedido || 'Aguardando pedido')}</td>
+            <td>${escapeHtml(item.observacao || '-')}</td>
           </tr>
           ${isExpandedEntity('hosp', item.id) ? `<tr class="detail-row"><td colspan="${columns}">${detailHospedagemGrid(item)}</td></tr>` : ''}
         `).join('');
@@ -5963,28 +5964,28 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
       if (targetId === 'pCarRows') {
         body.innerHTML = rows.map(item => `
-          <tr class="compact-row row-main-click ${item.pago ? 'paid-row' : ''}" onclick="toggleExpandedEntity('car','${item.id}')">
+          <tr class="compact-row row-main-click ${item.pago ? 'paid-row' : ''}" onclick="toggleExpandedEntity('car','${escapeHtml(item.id)}')">
             <td class="actioncell">
               <div class="actionstack">
-                <button class="rowflag ${item.pago ? 'active green' : ''}" type="button" title="Marcar como pago" aria-label="Marcar como pago" onclick="event.stopPropagation();toggleCarroPaid('${item.id}')">${icon('checkSquare')}</button>
-                <button class="rowflag" type="button" title="Gerar PDF" aria-label="Gerar PDF" onclick="event.stopPropagation();printCarroPdf('${item.id}')">${icon('printer')}</button>
-                <button class="rowflag" type="button" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();toggleExpandedEntity('car','${item.id}')">${icon(isExpandedEntity('car', item.id) ? 'chevronDown' : 'chevronRight')}</button>
-                <button class="rowact" title="Editar carro" aria-label="Editar carro" onclick="event.stopPropagation();editCarro('${item.id}')">${icon('edit')}</button>
-                <button class="rowact" title="Excluir carro" aria-label="Excluir carro" onclick="event.stopPropagation();deleteCarro('${item.id}')">${icon('trash')}</button>
+                <button class="rowflag ${item.pago ? 'active green' : ''}" type="button" title="Marcar como pago" aria-label="Marcar como pago" onclick="event.stopPropagation();toggleCarroPaid('${escapeHtml(item.id)}')">${icon('checkSquare')}</button>
+                <button class="rowflag" type="button" title="Gerar PDF" aria-label="Gerar PDF" onclick="event.stopPropagation();printCarroPdf('${escapeHtml(item.id)}')">${icon('printer')}</button>
+                <button class="rowflag" type="button" title="Abrir ou fechar detalhes" aria-label="Abrir ou fechar detalhes" onclick="event.stopPropagation();toggleExpandedEntity('car','${escapeHtml(item.id)}')">${icon(isExpandedEntity('car', item.id) ? 'chevronDown' : 'chevronRight')}</button>
+                <button class="rowact" title="Editar carro" aria-label="Editar carro" onclick="event.stopPropagation();editCarro('${escapeHtml(item.id)}')">${icon('edit')}</button>
+                <button class="rowact" title="Excluir carro" aria-label="Excluir carro" onclick="event.stopPropagation();deleteCarro('${escapeHtml(item.id)}')">${icon('trash')}</button>
               </div>
             </td>
-            <td><span class="company">${item.motorista || '-'}</span></td>
-            <td>${item.obra || '-'}</td>
-            <td>${item.cidade || '-'}</td>
+            <td><span class="company">${escapeHtml(item.motorista || '-')}</span></td>
+            <td>${escapeHtml(item.obra || '-')}</td>
+            <td>${escapeHtml(item.cidade || '-')}</td>
             <td>${formatDate(item.retirada)}</td>
             <td>${formatDate(item.devolucao)}</td>
-            <td>${item.numeroDiarias || '-'}</td>
-            <td>${item.valorTotal || '-'}</td>
-            <td>${item.numeroReserva || '-'}</td>
-            <td>${item.motivo || '-'}</td>
-            <td>${item.numeroPedido || '-'}</td>
-            <td>${item.statusPedido || 'Aguardando pedido'}</td>
-            <td>${item.observacao || '-'}</td>
+            <td>${escapeHtml(item.numeroDiarias || '-')}</td>
+            <td>${escapeHtml(item.valorTotal || '-')}</td>
+            <td>${escapeHtml(item.numeroReserva || '-')}</td>
+            <td>${escapeHtml(item.motivo || '-')}</td>
+            <td>${escapeHtml(item.numeroPedido || '-')}</td>
+            <td>${escapeHtml(item.statusPedido || 'Aguardando pedido')}</td>
+            <td>${escapeHtml(item.observacao || '-')}</td>
           </tr>
           ${isExpandedEntity('car', item.id) ? `<tr class="detail-row"><td colspan="${columns}">${detailCarroGrid(item)}</td></tr>` : ''}
         `).join('');
@@ -6087,7 +6088,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       const obraMax = obraEntries.length ? obraEntries[0][1] : 0;
       document.getElementById('pBars').innerHTML = obraEntries.length ? obraEntries.map(([obra, total]) => `
         <div class="baritem">
-          <div class="barlabel"><span>${obra}</span><b>${brl(total)}</b></div>
+          <div class="barlabel"><span>${escapeHtml(obra)}</span><b>${brl(total)}</b></div>
           <div class="track"><div class="fill" style="width:${obraMax ? (total / obraMax) * 100 : 0}%"></div></div>
         </div>
       `).join('') : `<div class="empty-state"><b>Sem compras no mes.</b>Assim que houver novas emissoes no periodo selecionado, o gasto por obra aparece aqui.</div>`;
@@ -6102,7 +6103,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       const savingsEntries = Object.entries(savingsByObra).sort((a, b) => b[1] - a[1]);
       document.getElementById('pSavingsList').innerHTML = savingsEntries.length ? savingsEntries.map(([obra, total]) => `
         <div class="li">
-          <div><b class="link">${obra}</b><div class="lisub">Economia acumulada no mes selecionado</div></div>
+          <div><b class="link">${escapeHtml(obra)}</b><div class="lisub">Economia acumulada no mes selecionado</div></div>
           <span class="tag ok">${brl(total)}</span>
         </div>
       `).join('') : `<div class="empty-state"><b>Sem economia no mes.</b>Esse quadro mostra compras do periodo com valor pago abaixo do aprovado.</div>`;
@@ -6137,12 +6138,12 @@ AMAURI BARROSO DE MOURA"></textarea>
       document.getElementById('pCadastroRows').innerHTML = cadastroRows.length ? cadastroRows.map(row => `
         <tr class="${row.pagoConfirmado ? 'paid-row' : ''}">
           <td>${formatDate(row.dataCompra)}</td>
-          <td><span class="company">${row.nome_colab || row.nome || '-'}</span></td>
-          <td>${row.nome_obra || '-'}</td>
-          <td>${row.modalidade}</td>
+          <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
+          <td>${escapeHtml(row.nome_obra || '-')}</td>
+          <td>${escapeHtml(row.modalidade)}</td>
           <td class="money">${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
           <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
-          <td class="actioncell"><button class="rowact" title="Editar cadastro manual" aria-label="Editar cadastro manual" onclick="editPassagem('${row.key}')">${icon('edit')}</button></td>
+          <td class="actioncell"><button class="rowact" title="Editar cadastro manual" aria-label="Editar cadastro manual" onclick="editPassagem('${escapeHtml(row.key)}')">${icon('edit')}</button></td>
         </tr>
       `).join('') : `<tr><td colspan="7"><div class="empty-state"><b>Nenhum cadastro manual neste mes.</b>Use esta aba para testar enquanto a API ainda nao devolve todos os campos operacionais.</div></td></tr>`;
       renderPassagensCreditos();
