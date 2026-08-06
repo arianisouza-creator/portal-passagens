@@ -2004,6 +2004,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       document.getElementById(`hview-${viewName}`).classList.add('on');
     }
     function openPassagensView(viewName) {
+      passagensCurrentView = viewName;
       document.querySelectorAll('.toplink[data-p-view]').forEach(item => item.classList.remove('on'));
       document.querySelectorAll('#modulePassagens .view').forEach(view => view.classList.remove('on'));
       document.querySelector(`.toplink[data-p-view="${viewName}"]`).classList.add('on');
@@ -2148,6 +2149,9 @@ AMAURI BARROSO DE MOURA"></textarea>
     let passagensRoadTab = 'overview';
     let passagensHospTab = 'overview';
     let passagensCarTab = 'overview';
+    let passagensCurrentView = 'overview';
+    let passagensRenderTimer = null;
+    let passagensRenderQueued = false;
     let editingHospedagemId = null;
     let editingCarroId = null;
     const passagensSelectedKeys = new Set();
@@ -4968,6 +4972,29 @@ AMAURI BARROSO DE MOURA"></textarea>
       });
     }
 
+    function requestPassagensRender(delay = 0) {
+      if (passagensRenderTimer) {
+        clearTimeout(passagensRenderTimer);
+        passagensRenderTimer = null;
+      }
+      const queueFrame = () => {
+        if (passagensRenderQueued) return;
+        passagensRenderQueued = true;
+        window.requestAnimationFrame(() => {
+          passagensRenderQueued = false;
+          renderPassagens();
+        });
+      };
+      if (delay > 0) {
+        passagensRenderTimer = window.setTimeout(() => {
+          passagensRenderTimer = null;
+          queueFrame();
+        }, delay);
+        return;
+      }
+      queueFrame();
+    }
+
     function applyPassagensStatusFilter(rows, tabName) {
       if (tabName === 'pending') return rows.filter(row => !row.pagoConfirmado);
       if (tabName === 'finalized') return rows.filter(row => row.pagoConfirmado);
@@ -5993,10 +6020,12 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
     }
 
-    function passagensListByMode(mode, tabName, startValue, endValue) {
+    function passagensListByMode(mode, tabName, startValue, endValue, monthRowsSource = null, yearRowsSource = null) {
+      const monthBase = monthRowsSource || currentPassagensData();
+      const yearBase = yearRowsSource || currentPassagensYearData();
       const baseRows = tabName === 'finalized'
-        ? currentPassagensYearData().filter(item => item.modalidade === mode)
-        : currentPassagensData().filter(item => item.modalidade === mode);
+        ? yearBase.filter(item => item.modalidade === mode)
+        : monthBase.filter(item => item.modalidade === mode);
       return filterPassagensByRange(
         applyPassagensStatusFilter(filteredPassagens(baseRows, mode === 'Aereo' ? 'air' : 'road'), tabName),
         startValue,
@@ -6011,7 +6040,13 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function renderPassagens() {
-      const monthRows = filteredPassagens(currentPassagensData(), 'all');
+      const allRows = allPassagensData();
+      const currentMonth = currentPassagensMonth();
+      const currentYear = currentPassagensYear();
+      const activeView = passagensCurrentView || 'overview';
+      const monthSourceRows = allRows.filter(item => monthKeyFromDate(item.dataCompra) === currentMonth);
+      const yearSourceRows = allRows.filter(item => String(item.dataCompra || '').startsWith(currentYear));
+      const monthRows = filteredPassagens(monthSourceRows, 'all');
       const todayRows = monthRows.filter(row => normalizeDateValue(row.dataCompra) === todayKey());
       const totalPaidMonth = monthRows.reduce((sum, row) => sum + (row.valorPago || 0), 0);
       const totalSavingsMonth = monthRows.reduce((sum, row) => sum + (row.economia || 0), 0);
@@ -6028,31 +6063,8 @@ AMAURI BARROSO DE MOURA"></textarea>
         if (row.economia > 0) savingsByObra[obra] = (savingsByObra[obra] || 0) + row.economia;
       });
 
-      const airRangeRows = filterPassagensByHeader(
-        passagensListByMode('Aereo', passagensAirTab, pAirStart.value, pAirEnd.value),
-        pAirHeaderFilters
-      );
-      const roadRangeRows = filterPassagensByHeader(
-        passagensListByMode('Rodoviario', passagensRoadTab, pRoadStart.value, pRoadEnd.value),
-        pRoadHeaderFilters
-      );
-      const hospedagemRows = passagensHospedagens.filter(item => (passagensHospTab === 'finalized' ? item.pago : true)).filter(item => {
-        if (!queryMatch([item.nome, item.obra, item.hotel, item.cidade, item.motivo, item.numeroPedido, item.statusPedido])) return false;
-        const refDate = normalizeDateValue(item.checkIn || item.checkOut);
-        if (pHospStart.value && (!refDate || refDate < normalizeDateValue(pHospStart.value))) return false;
-        if (pHospEnd.value && (!refDate || refDate > normalizeDateValue(pHospEnd.value))) return false;
-        return true;
-      });
-      const carroRows = passagensCarros.filter(item => (passagensCarTab === 'finalized' ? item.pago : true)).filter(item => {
-        if (!queryMatch([item.motorista, item.obra, item.cidade, item.motivo, item.numeroPedido, item.numeroReserva, item.statusPedido])) return false;
-        const refDate = normalizeDateValue(item.retirada || item.devolucao);
-        if (pCarStart.value && (!refDate || refDate < normalizeDateValue(pCarStart.value))) return false;
-        if (pCarEnd.value && (!refDate || refDate > normalizeDateValue(pCarEnd.value))) return false;
-        return true;
-      });
-
-      pMonthPicker.value = currentPassagensMonth();
-      document.getElementById('pPageTitle').textContent = `Controle de Passagens | ${monthLabel(currentPassagensMonth())}`;
+      pMonthPicker.value = currentMonth;
+      document.getElementById('pPageTitle').textContent = `Controle de Passagens | ${monthLabel(currentMonth)}`;
       document.getElementById('pPageSubtitle').textContent = todayRows.length
         ? `Os cards e graficos mostram o resumo mensal. A tabela abaixo destaca as passagens compradas hoje (${formatDate(todayKey())}).`
         : `Os cards e graficos mostram o resumo mensal. Hoje ainda nao houve compras registradas neste mes selecionado.`;
@@ -6061,92 +6073,134 @@ AMAURI BARROSO DE MOURA"></textarea>
       document.getElementById('pRoad').textContent = monthRows.filter(row => row.modalidade === 'Rodoviario').length;
       document.getElementById('pPaid').textContent = brl(totalPaidMonth);
       document.getElementById('pSavings').textContent = brl(totalSavingsMonth);
-      document.getElementById('pCountLabel').textContent = `${todayRows.length} compras de hoje`;
-      document.getElementById('pFootCount').textContent = `${todayRows.length} item(ns) hoje`;
-      document.getElementById('pAirCount').textContent = `${airRangeRows.length} registro(s)`;
-      document.getElementById('pRoadCount').textContent = `${roadRangeRows.length} registro(s)`;
-      document.getElementById('pHospCount').textContent = `${hospedagemRows.length} registro(s)`;
-      document.getElementById('pCarCount').textContent = `${carroRows.length} registro(s)`;
       document.getElementById('pSyncStamp').textContent = passagensLastSync ? `Ultima sync ${passagensLastSync}` : 'Sem sincronizacao ainda';
-
-      document.getElementById('pCardBars').classList.toggle('collapsed-panel', passagensOverviewCollapsed.bars);
-      document.getElementById('pCardModes').classList.toggle('collapsed-panel', passagensOverviewCollapsed.modes);
-      document.getElementById('pCardSavings').classList.toggle('collapsed-panel', passagensOverviewCollapsed.savings);
-      document.getElementById('pAirSummaryCard').classList.toggle('collapsed-panel', passagensSectionCollapsed.airSummary);
-      document.getElementById('pAirBarsCard').classList.toggle('collapsed-panel', passagensSectionCollapsed.airBars);
-      document.getElementById('pRoadSummaryCard').classList.toggle('collapsed-panel', passagensSectionCollapsed.roadSummary);
-      document.getElementById('pRoadBarsCard').classList.toggle('collapsed-panel', passagensSectionCollapsed.roadBars);
-      document.getElementById('togglePBars').innerHTML = icon(passagensOverviewCollapsed.bars ? 'chevronRight' : 'chevronDown', 16);
-      document.getElementById('togglePModes').innerHTML = icon(passagensOverviewCollapsed.modes ? 'chevronRight' : 'chevronDown', 16);
-      document.getElementById('togglePSavings').innerHTML = icon(passagensOverviewCollapsed.savings ? 'chevronRight' : 'chevronDown', 16);
-      document.getElementById('togglePAirSummary').innerHTML = icon(passagensSectionCollapsed.airSummary ? 'chevronRight' : 'chevronDown', 16);
-      document.getElementById('togglePAirBars').innerHTML = icon(passagensSectionCollapsed.airBars ? 'chevronRight' : 'chevronDown', 16);
-      document.getElementById('togglePRoadSummary').innerHTML = icon(passagensSectionCollapsed.roadSummary ? 'chevronRight' : 'chevronDown', 16);
-      document.getElementById('togglePRoadBars').innerHTML = icon(passagensSectionCollapsed.roadBars ? 'chevronRight' : 'chevronDown', 16);
-
-      const obraEntries = Object.entries(byObra).sort((a, b) => b[1] - a[1]);
-      const obraMax = obraEntries.length ? obraEntries[0][1] : 0;
-      document.getElementById('pBars').innerHTML = obraEntries.length ? obraEntries.map(([obra, total]) => `
-        <div class="baritem">
-          <div class="barlabel"><span>${escapeHtml(obra)}</span><b>${brl(total)}</b></div>
-          <div class="track"><div class="fill" style="width:${obraMax ? (total / obraMax) * 100 : 0}%"></div></div>
-        </div>
-      `).join('') : `<div class="empty-state"><b>Sem compras no mes.</b>Assim que houver novas emissoes no periodo selecionado, o gasto por obra aparece aqui.</div>`;
-      const modeEntries = Object.entries(byMode);
-      const modeMax = Math.max(...modeEntries.map(([, info]) => info.count), 0);
-      document.getElementById('pModeBars').innerHTML = modeEntries.map(([mode, info]) => `
-        <div class="baritem">
-          <div class="barlabel"><span>${mode}</span><b>${info.count} passagem(ns) | ${brl(info.total)}</b></div>
-          <div class="track"><div class="fill" style="width:${modeMax ? (info.count / modeMax) * 100 : 0}%"></div></div>
-        </div>
-      `).join('');
-      const savingsEntries = Object.entries(savingsByObra).sort((a, b) => b[1] - a[1]);
-      document.getElementById('pSavingsList').innerHTML = savingsEntries.length ? savingsEntries.map(([obra, total]) => `
-        <div class="li">
-          <div><b class="link">${escapeHtml(obra)}</b><div class="lisub">Economia acumulada no mes selecionado</div></div>
-          <span class="tag ok">${brl(total)}</span>
-        </div>
-      `).join('') : `<div class="empty-state"><b>Sem economia no mes.</b>Esse quadro mostra compras do periodo com valor pago abaixo do aprovado.</div>`;
-
-      renderPassagensTable('pRows', todayRows, 10);
-      renderPassagensTable('pAirRows', airRangeRows, 10);
-      renderPassagensTable('pRoadRows', roadRangeRows, 10);
-      renderPassagensTable('pHospRows', hospedagemRows, 17);
-      renderPassagensTable('pCarRows', carroRows, 13);
-      renderPassagensKpi(monthRows);
-
-      renderPassagensRangeSummary('pAirSummary', 'pAirRangeLabel', airRangeRows, pAirStart.value, pAirEnd.value);
-      renderPassagensRangeSummary('pRoadSummary', 'pRoadRangeLabel', roadRangeRows, pRoadStart.value, pRoadEnd.value);
-      renderPassagensRangeBars('pAirBars', airRangeRows, 'Nenhuma passagem aerea nesse intervalo.');
-      renderPassagensRangeBars('pRoadBars', roadRangeRows, 'Nenhuma passagem rodoviaria nesse intervalo.');
-      document.getElementById('pAirBulkLabel').textContent = passagensAirTab === 'finalized'
-        ? `Finalizados do ano ${currentPassagensYear()}`
-        : `${passagensSelectedKeys.size} selecionada(s) para fechamento`;
-      document.getElementById('pRoadBulkLabel').textContent = passagensRoadTab === 'finalized'
-        ? `Finalizados do ano ${currentPassagensYear()}`
-        : `${passagensSelectedKeys.size} selecionada(s) para fechamento`;
-      document.getElementById('pAirFinalize').classList.toggle('hidden', passagensAirTab === 'finalized');
-      document.getElementById('pRoadFinalize').classList.toggle('hidden', passagensRoadTab === 'finalized');
 
       document.querySelectorAll('[data-p-air-tab]').forEach(button => button.classList.toggle('on', button.dataset.pAirTab === passagensAirTab));
       document.querySelectorAll('[data-p-road-tab]').forEach(button => button.classList.toggle('on', button.dataset.pRoadTab === passagensRoadTab));
       document.querySelectorAll('[data-p-hosp-tab]').forEach(button => button.classList.toggle('on', button.dataset.pHospTab === passagensHospTab));
       document.querySelectorAll('[data-p-car-tab]').forEach(button => button.classList.toggle('on', button.dataset.pCarTab === passagensCarTab));
 
-      const cadastroRows = monthRows.filter(row => row.tabela === 'manual' || row.key.startsWith('manual:'));
-      document.getElementById('pCadastroCount').textContent = `${cadastroRows.length} registros`;
-      document.getElementById('pCadastroRows').innerHTML = cadastroRows.length ? cadastroRows.map(row => `
-        <tr class="${row.pagoConfirmado ? 'paid-row' : ''}">
-          <td>${formatDate(row.dataCompra)}</td>
-          <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
-          <td>${escapeHtml(row.nome_obra || '-')}</td>
-          <td>${escapeHtml(row.modalidade)}</td>
-          <td class="money">${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
-          <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
-          <td class="actioncell"><button class="rowact" title="Editar cadastro manual" aria-label="Editar cadastro manual" onclick="editPassagem('${escapeHtml(row.key)}')">${icon('edit')}</button></td>
-        </tr>
-      `).join('') : `<tr><td colspan="7"><div class="empty-state"><b>Nenhum cadastro manual neste mes.</b>Use esta aba para testar enquanto a API ainda nao devolve todos os campos operacionais.</div></td></tr>`;
-      renderPassagensCreditos();
+      if (activeView === 'overview') {
+        document.getElementById('pCountLabel').textContent = `${todayRows.length} compras de hoje`;
+        document.getElementById('pFootCount').textContent = `${todayRows.length} item(ns) hoje`;
+        document.getElementById('pCardBars').classList.toggle('collapsed-panel', passagensOverviewCollapsed.bars);
+        document.getElementById('pCardModes').classList.toggle('collapsed-panel', passagensOverviewCollapsed.modes);
+        document.getElementById('pCardSavings').classList.toggle('collapsed-panel', passagensOverviewCollapsed.savings);
+        document.getElementById('togglePBars').innerHTML = icon(passagensOverviewCollapsed.bars ? 'chevronRight' : 'chevronDown', 16);
+        document.getElementById('togglePModes').innerHTML = icon(passagensOverviewCollapsed.modes ? 'chevronRight' : 'chevronDown', 16);
+        document.getElementById('togglePSavings').innerHTML = icon(passagensOverviewCollapsed.savings ? 'chevronRight' : 'chevronDown', 16);
+
+        const obraEntries = Object.entries(byObra).sort((a, b) => b[1] - a[1]);
+        const obraMax = obraEntries.length ? obraEntries[0][1] : 0;
+        document.getElementById('pBars').innerHTML = obraEntries.length ? obraEntries.map(([obra, total]) => `
+          <div class="baritem">
+            <div class="barlabel"><span>${escapeHtml(obra)}</span><b>${brl(total)}</b></div>
+            <div class="track"><div class="fill" style="width:${obraMax ? (total / obraMax) * 100 : 0}%"></div></div>
+          </div>
+        `).join('') : `<div class="empty-state"><b>Sem compras no mes.</b>Assim que houver novas emissoes no periodo selecionado, o gasto por obra aparece aqui.</div>`;
+        const modeEntries = Object.entries(byMode);
+        const modeMax = Math.max(...modeEntries.map(([, info]) => info.count), 0);
+        document.getElementById('pModeBars').innerHTML = modeEntries.map(([mode, info]) => `
+          <div class="baritem">
+            <div class="barlabel"><span>${mode}</span><b>${info.count} passagem(ns) | ${brl(info.total)}</b></div>
+            <div class="track"><div class="fill" style="width:${modeMax ? (info.count / modeMax) * 100 : 0}%"></div></div>
+          </div>
+        `).join('');
+        const savingsEntries = Object.entries(savingsByObra).sort((a, b) => b[1] - a[1]);
+        document.getElementById('pSavingsList').innerHTML = savingsEntries.length ? savingsEntries.map(([obra, total]) => `
+          <div class="li">
+            <div><b class="link">${escapeHtml(obra)}</b><div class="lisub">Economia acumulada no mes selecionado</div></div>
+            <span class="tag ok">${brl(total)}</span>
+          </div>
+        `).join('') : `<div class="empty-state"><b>Sem economia no mes.</b>Esse quadro mostra compras do periodo com valor pago abaixo do aprovado.</div>`;
+        renderPassagensTable('pRows', todayRows, 10);
+      }
+
+      if (activeView === 'air') {
+        const airRangeRows = filterPassagensByHeader(
+          passagensListByMode('Aereo', passagensAirTab, pAirStart.value, pAirEnd.value, monthSourceRows, yearSourceRows),
+          pAirHeaderFilters
+        );
+        document.getElementById('pAirCount').textContent = `${airRangeRows.length} registro(s)`;
+        document.getElementById('pAirSummaryCard').classList.toggle('collapsed-panel', passagensSectionCollapsed.airSummary);
+        document.getElementById('pAirBarsCard').classList.toggle('collapsed-panel', passagensSectionCollapsed.airBars);
+        document.getElementById('togglePAirSummary').innerHTML = icon(passagensSectionCollapsed.airSummary ? 'chevronRight' : 'chevronDown', 16);
+        document.getElementById('togglePAirBars').innerHTML = icon(passagensSectionCollapsed.airBars ? 'chevronRight' : 'chevronDown', 16);
+        renderPassagensRangeSummary('pAirSummary', 'pAirRangeLabel', airRangeRows, pAirStart.value, pAirEnd.value);
+        renderPassagensRangeBars('pAirBars', airRangeRows, 'Nenhuma passagem aerea nesse intervalo.');
+        renderPassagensTable('pAirRows', airRangeRows, 10);
+        document.getElementById('pAirBulkLabel').textContent = passagensAirTab === 'finalized'
+          ? `Finalizados do ano ${currentYear}`
+          : `${passagensSelectedKeys.size} selecionada(s) para fechamento`;
+        document.getElementById('pAirFinalize').classList.toggle('hidden', passagensAirTab === 'finalized');
+      }
+
+      if (activeView === 'road') {
+        const roadRangeRows = filterPassagensByHeader(
+          passagensListByMode('Rodoviario', passagensRoadTab, pRoadStart.value, pRoadEnd.value, monthSourceRows, yearSourceRows),
+          pRoadHeaderFilters
+        );
+        document.getElementById('pRoadCount').textContent = `${roadRangeRows.length} registro(s)`;
+        document.getElementById('pRoadSummaryCard').classList.toggle('collapsed-panel', passagensSectionCollapsed.roadSummary);
+        document.getElementById('pRoadBarsCard').classList.toggle('collapsed-panel', passagensSectionCollapsed.roadBars);
+        document.getElementById('togglePRoadSummary').innerHTML = icon(passagensSectionCollapsed.roadSummary ? 'chevronRight' : 'chevronDown', 16);
+        document.getElementById('togglePRoadBars').innerHTML = icon(passagensSectionCollapsed.roadBars ? 'chevronRight' : 'chevronDown', 16);
+        renderPassagensRangeSummary('pRoadSummary', 'pRoadRangeLabel', roadRangeRows, pRoadStart.value, pRoadEnd.value);
+        renderPassagensRangeBars('pRoadBars', roadRangeRows, 'Nenhuma passagem rodoviaria nesse intervalo.');
+        renderPassagensTable('pRoadRows', roadRangeRows, 10);
+        document.getElementById('pRoadBulkLabel').textContent = passagensRoadTab === 'finalized'
+          ? `Finalizados do ano ${currentYear}`
+          : `${passagensSelectedKeys.size} selecionada(s) para fechamento`;
+        document.getElementById('pRoadFinalize').classList.toggle('hidden', passagensRoadTab === 'finalized');
+      }
+
+      if (activeView === 'hospedagem') {
+        const hospedagemRows = passagensHospedagens.filter(item => (passagensHospTab === 'finalized' ? item.pago : true)).filter(item => {
+          if (!queryMatch([item.nome, item.obra, item.hotel, item.cidade, item.motivo, item.numeroPedido, item.statusPedido])) return false;
+          const refDate = normalizeDateValue(item.checkIn || item.checkOut);
+          if (pHospStart.value && (!refDate || refDate < normalizeDateValue(pHospStart.value))) return false;
+          if (pHospEnd.value && (!refDate || refDate > normalizeDateValue(pHospEnd.value))) return false;
+          return true;
+        });
+        document.getElementById('pHospCount').textContent = `${hospedagemRows.length} registro(s)`;
+        renderPassagensTable('pHospRows', hospedagemRows, 17);
+      }
+
+      if (activeView === 'carros') {
+        const carroRows = passagensCarros.filter(item => (passagensCarTab === 'finalized' ? item.pago : true)).filter(item => {
+          if (!queryMatch([item.motorista, item.obra, item.cidade, item.motivo, item.numeroPedido, item.numeroReserva, item.statusPedido])) return false;
+          const refDate = normalizeDateValue(item.retirada || item.devolucao);
+          if (pCarStart.value && (!refDate || refDate < normalizeDateValue(pCarStart.value))) return false;
+          if (pCarEnd.value && (!refDate || refDate > normalizeDateValue(pCarEnd.value))) return false;
+          return true;
+        });
+        document.getElementById('pCarCount').textContent = `${carroRows.length} registro(s)`;
+        renderPassagensTable('pCarRows', carroRows, 13);
+      }
+
+      if (activeView === 'kpi') {
+        renderPassagensKpi(monthRows);
+      }
+
+      if (activeView === 'cadastro') {
+        const cadastroRows = monthRows.filter(row => row.tabela === 'manual' || row.key.startsWith('manual:'));
+        document.getElementById('pCadastroCount').textContent = `${cadastroRows.length} registros`;
+        document.getElementById('pCadastroRows').innerHTML = cadastroRows.length ? cadastroRows.map(row => `
+          <tr class="${row.pagoConfirmado ? 'paid-row' : ''}">
+            <td>${formatDate(row.dataCompra)}</td>
+            <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
+            <td>${escapeHtml(row.nome_obra || '-')}</td>
+            <td>${escapeHtml(row.modalidade)}</td>
+            <td class="money">${row.valorAprovado == null ? '-' : brl(row.valorAprovado)}</td>
+            <td class="money">${row.valorPago == null ? '-' : brl(row.valorPago)}</td>
+            <td class="actioncell"><button class="rowact" title="Editar cadastro manual" aria-label="Editar cadastro manual" onclick="editPassagem('${escapeHtml(row.key)}')">${icon('edit')}</button></td>
+          </tr>
+        `).join('') : `<tr><td colspan="7"><div class="empty-state"><b>Nenhum cadastro manual neste mes.</b>Use esta aba para testar enquanto a API ainda nao devolve todos os campos operacionais.</div></td></tr>`;
+      }
+
+      if (activeView === 'creditos') {
+        renderPassagensCreditos();
+      }
     }
 
     async function syncPassagensData() {
@@ -6542,18 +6596,18 @@ AMAURI BARROSO DE MOURA"></textarea>
     });
     document.getElementById('dq').addEventListener('input', renderDiarista);
     document.getElementById('hq').addEventListener('input', renderHitachi);
-    document.getElementById('pq').addEventListener('input', renderPassagens);
-    [pAirStart, pAirEnd, pRoadStart, pRoadEnd, pHospStart, pHospEnd, pCarStart, pCarEnd].forEach(input => input.addEventListener('change', renderPassagens));
+    document.getElementById('pq').addEventListener('input', () => requestPassagensRender(180));
+    [pAirStart, pAirEnd, pRoadStart, pRoadEnd, pHospStart, pHospEnd, pCarStart, pCarEnd].forEach(input => input.addEventListener('change', () => requestPassagensRender()));
     document.getElementById('pAirClear').addEventListener('click', () => {
       pAirStart.value = '';
       pAirEnd.value = '';
-      renderPassagens();
+      requestPassagensRender();
     });
     document.getElementById('pAirPdf').addEventListener('click', () => openPassagensPdf('air'));
     document.getElementById('pRoadClear').addEventListener('click', () => {
       pRoadStart.value = '';
       pRoadEnd.value = '';
-      renderPassagens();
+      requestPassagensRender();
     });
     document.getElementById('pRoadPdf').addEventListener('click', () => openPassagensPdf('road'));
     hMonthPicker.addEventListener('change', () => {
@@ -6563,7 +6617,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     });
     pMonthPicker.addEventListener('change', () => {
       if (!pMonthPicker.value) pMonthPicker.value = currentMonthKey();
-      renderPassagens();
+      requestPassagensRender();
     });
 
     document.getElementById('tabLoginForm').addEventListener('submit', event => {
@@ -6861,7 +6915,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     document.querySelectorAll('.toplink[data-p-view]').forEach(button => {
       button.addEventListener('click', () => {
         openPassagensView(button.dataset.pView);
-        renderPassagens();
+        requestPassagensRender();
       });
     });
     document.getElementById('diaristaMonthForm').addEventListener('submit', async event => {
@@ -6922,31 +6976,31 @@ AMAURI BARROSO DE MOURA"></textarea>
     document.getElementById('pHospClear').addEventListener('click', () => {
       pHospStart.value = '';
       pHospEnd.value = '';
-      renderPassagens();
+      requestPassagensRender();
     });
     document.getElementById('pCarClear').addEventListener('click', () => {
       pCarStart.value = '';
       pCarEnd.value = '';
-      renderPassagens();
+      requestPassagensRender();
     });
     document.querySelectorAll('[data-p-air-tab]').forEach(button => button.addEventListener('click', () => {
       passagensAirTab = button.dataset.pAirTab || 'overview';
-      renderPassagens();
+      requestPassagensRender();
     }));
     [...Object.values(pAirHeaderFilters), ...Object.values(pRoadHeaderFilters)].filter(Boolean).forEach(input => {
-      input.addEventListener('input', renderPassagens);
+      input.addEventListener('input', () => requestPassagensRender(160));
     });
     document.querySelectorAll('[data-p-road-tab]').forEach(button => button.addEventListener('click', () => {
       passagensRoadTab = button.dataset.pRoadTab || 'overview';
-      renderPassagens();
+      requestPassagensRender();
     }));
     document.querySelectorAll('[data-p-hosp-tab]').forEach(button => button.addEventListener('click', () => {
       passagensHospTab = button.dataset.pHospTab || 'overview';
-      renderPassagens();
+      requestPassagensRender();
     }));
     document.querySelectorAll('[data-p-car-tab]').forEach(button => button.addEventListener('click', () => {
       passagensCarTab = button.dataset.pCarTab || 'overview';
-      renderPassagens();
+      requestPassagensRender();
     }));
     document.getElementById('passagensConfigForm').addEventListener('submit', async event => {
       event.preventDefault();
@@ -6966,7 +7020,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         passagensApiBaseUrl = nextBaseUrl;
         passagensApiToken = nextToken;
         saveLocalCache();
-        renderPassagens();
+        requestPassagensRender();
         closeModalById('passagensConfigModal');
         setSyncStatus(`API de passagens conectada. ${result.total} registro(s) disponivel(is).`);
         setPassagensConfigFeedback(`Conexao validada com sucesso. ${result.total} registro(s) encontrado(s) na API.`, 'success');
@@ -7072,7 +7126,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       } catch (error) {
         console.error(error);
       }
-      renderPassagens();
+      requestPassagensRender();
       closeModalById('passagensEditModal');
     });
     document.getElementById('passagensHospedagemForm').addEventListener('submit', event => {
@@ -7104,7 +7158,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       });
       editingHospedagemId = null;
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
       closeModalById('passagensHospedagemModal');
     });
     document.getElementById('passagensCarroForm').addEventListener('submit', event => {
@@ -7130,7 +7184,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       });
       editingCarroId = null;
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
       closeModalById('passagensCarroModal');
     });
     document.getElementById('passagensDeleteForm').addEventListener('submit', async event => {
@@ -7175,7 +7229,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       event.currentTarget.reset();
       errorBox.style.display = 'none';
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
       closeModalById('passagensDeleteModal');
       try {
         await upsertPassagemComplementRemote(targetKey, passagensComplements[targetKey]);
@@ -7372,7 +7426,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       openDiaristaView('overview');
       renderDiarista();
       openPassagensView('overview');
-      renderPassagens();
+      requestPassagensRender();
       openHitachiView('overview');
       renderHitachi();
       if (passagensApiToken && PASSAGENS_API_ONLY) {
