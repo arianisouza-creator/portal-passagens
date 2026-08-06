@@ -1203,6 +1203,50 @@
               </footer>
             </form>
           </section>
+          <section class="card pad" style="margin-top:14px">
+            <div class="chead"><span class="ti2">Novo hotel manual</span><span class="eyebrow">Hospedagem</span></div>
+            <form id="passagensHotelManualForm" class="formgrid">
+              <label>Cartao ou faturado<input name="cartaoOuFaturado" placeholder="Ex.: Cartao, Faturado"></label>
+              <label>Obra<input name="obra" required placeholder="Ex.: LMS"></label>
+              <label>Colaborador<input name="nome" required placeholder="Nome do hospede"></label>
+              <label>Hotel<input name="hotel" required placeholder="Ex.: Hotel Central"></label>
+              <label>Cidade<input name="cidade" placeholder="Ex.: Sao Paulo"></label>
+              <label>Check in<input name="checkIn" type="date"></label>
+              <label>Check out<input name="checkOut" type="date"></label>
+              <label>Numero de diarias<input name="numeroDiarias" type="number" min="1" placeholder="Calculado se vazio"></label>
+              <label>Valor diaria<input name="valorDiaria" placeholder="Ex.: 250,00"></label>
+              <label>Valor total diarias<input name="valorTotalDiarias" placeholder="Ex.: 750,00"></label>
+              <label>Valor total<input name="valorTotal" placeholder="Ex.: 820,00"></label>
+              <label>Itinerario<input name="itinerario" placeholder="Ex.: GRU - AMS"></label>
+              <label>Motivo<input name="motivo" placeholder="Ex.: Visita tecnica"></label>
+              <label>Numero do pedido<input name="numeroPedido" placeholder="Ex.: 110766"></label>
+              <label class="checklabel"><input name="pago" type="checkbox">Pago</label>
+              <label style="grid-column:1 / -1">Observacao<input name="observacao" placeholder="Informacoes adicionais da hospedagem"></label>
+              <footer style="grid-column:1 / -1">
+                <button class="primary" type="submit"><span data-icon="plus"></span>Salvar hotel manual</button>
+              </footer>
+            </form>
+          </section>
+          <section class="card pad" style="margin-top:14px">
+            <div class="chead"><span class="ti2">Novo carro manual</span><span class="eyebrow">Locacao</span></div>
+            <form id="passagensCarroManualForm" class="formgrid">
+              <label>Motorista / Colaborador<input name="motorista" required placeholder="Nome do motorista"></label>
+              <label>Obra<input name="obra" required placeholder="Ex.: LMS"></label>
+              <label>Cidade<input name="cidade" placeholder="Ex.: Rio de Janeiro"></label>
+              <label>Retirada<input name="retirada" type="date"></label>
+              <label>Devolucao<input name="devolucao" type="date"></label>
+              <label>Numero de diarias<input name="numeroDiarias" type="number" min="1" placeholder="Calculado se vazio"></label>
+              <label>Valor total<input name="valorTotal" placeholder="Ex.: 980,00"></label>
+              <label>Numero da reserva<input name="numeroReserva" placeholder="Ex.: RES123"></label>
+              <label>Motivo<input name="motivo" placeholder="Ex.: Deslocamento em obra"></label>
+              <label>Numero do pedido<input name="numeroPedido" placeholder="Ex.: 110766"></label>
+              <label class="checklabel"><input name="pago" type="checkbox">Pago</label>
+              <label style="grid-column:1 / -1">Observacao<input name="observacao" placeholder="Informacoes adicionais da locacao"></label>
+              <footer style="grid-column:1 / -1">
+                <button class="primary" type="submit"><span data-icon="plus"></span>Salvar carro manual</button>
+              </footer>
+            </form>
+          </section>
           <section class="card table-card" style="margin-top:14px">
             <div class="pad">
               <div class="chead"><span class="ti2">Cadastros do mes</span><span class="eyebrow" id="pCadastroCount">0 registros</span></div>
@@ -7081,6 +7125,68 @@ AMAURI BARROSO DE MOURA"></textarea>
       openPassagensView('overview');
       renderPassagens();
       setSyncStatus('Cadastro manual de passagem salvo para teste');
+    });
+    document.getElementById('passagensHotelManualForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const formData = Object.fromEntries(new FormData(form).entries());
+      const numeroDiarias = Number(formData.numeroDiarias || countDiarias(formData.checkIn, formData.checkOut));
+      const valorDiaria = parseMoney(formData.valorDiaria);
+      const hospedagem = {
+        id: createId(),
+        passagemKey: '',
+        cartaoOuFaturado: formData.cartaoOuFaturado || '',
+        obra: formData.obra || '',
+        nome: formData.nome || '',
+        hotel: formData.hotel || '',
+        cidade: formData.cidade || '',
+        checkIn: formData.checkIn || '',
+        checkOut: formData.checkOut || '',
+        numeroDiarias,
+        valorDiaria: formData.valorDiaria || '',
+        valorTotalDiarias: formData.valorTotalDiarias || (valorDiaria != null ? brl(valorDiaria * (numeroDiarias || 1)) : ''),
+        valorTotal: formData.valorTotal || '',
+        itinerario: formData.itinerario || '',
+        motivo: formData.motivo || '',
+        numeroPedido: formData.numeroPedido || '',
+        observacao: formData.observacao || '',
+        pago: Boolean(formData.pago)
+      };
+      passagensHospedagens.push(hospedagem);
+      form.reset();
+      saveLocalCache();
+      upsertPassagemHospedagemRemote(hospedagem).catch(error => console.error(error));
+      openPassagensView('hospedagem');
+      requestPassagensRender();
+      setSyncStatus('Cadastro manual de hotel salvo');
+    });
+    document.getElementById('passagensCarroManualForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const formData = Object.fromEntries(new FormData(form).entries());
+      const carro = {
+        id: createId(),
+        passagemKey: '',
+        obra: formData.obra || '',
+        motorista: formData.motorista || '',
+        cidade: formData.cidade || '',
+        retirada: formData.retirada || '',
+        devolucao: formData.devolucao || '',
+        numeroDiarias: formData.numeroDiarias || countDiarias(formData.retirada, formData.devolucao),
+        valorTotal: formData.valorTotal || '',
+        numeroReserva: formData.numeroReserva || '',
+        motivo: formData.motivo || '',
+        numeroPedido: formData.numeroPedido || '',
+        observacao: formData.observacao || '',
+        pago: Boolean(formData.pago)
+      };
+      passagensCarros.push(carro);
+      form.reset();
+      saveLocalCache();
+      upsertPassagemCarroRemote(carro).catch(error => console.error(error));
+      openPassagensView('carros');
+      requestPassagensRender();
+      setSyncStatus('Cadastro manual de carro salvo');
     });
     document.getElementById('passagensCreditoForm').addEventListener('submit', async event => {
       event.preventDefault();
