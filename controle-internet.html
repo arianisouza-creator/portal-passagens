@@ -2197,6 +2197,14 @@ AMAURI BARROSO DE MOURA"></textarea>
     let passagensRenderTimer = null;
     let passagensRenderQueued = false;
     let passagensDataCache = null;
+    const PASSAGENS_BASE_RENDER_LIMIT = 40;
+    const passagensRenderLimits = {
+      pRows: 25,
+      pAirRows: PASSAGENS_BASE_RENDER_LIMIT,
+      pRoadRows: PASSAGENS_BASE_RENDER_LIMIT,
+      pHospRows: PASSAGENS_BASE_RENDER_LIMIT,
+      pCarRows: PASSAGENS_BASE_RENDER_LIMIT
+    };
     let editingHospedagemId = null;
     let editingCarroId = null;
     const passagensSelectedKeys = new Set();
@@ -6001,6 +6009,47 @@ AMAURI BARROSO DE MOURA"></textarea>
       </div>`;
     }
 
+    function visiblePassagensRows(targetId, rows) {
+      const limit = passagensRenderLimits[targetId] || rows.length;
+      return rows.slice(0, limit);
+    }
+
+    function buildPassagensLoadMoreRow(targetId, columns, totalCount) {
+      const limit = passagensRenderLimits[targetId] || PASSAGENS_BASE_RENDER_LIMIT;
+      if (totalCount <= limit) return '';
+      const remaining = totalCount - limit;
+      return `
+        <tr class="load-more-row">
+          <td colspan="${columns}" style="padding:14px;text-align:center">
+            <button class="soft" type="button" onclick="expandPassagensRenderLimit('${targetId}')">
+              Mostrar mais ${Math.min(PASSAGENS_BASE_RENDER_LIMIT, remaining)} registro(s)
+            </button>
+            <div class="eyebrow" style="margin-top:8px">${limit} de ${totalCount} registro(s) carregados</div>
+          </td>
+        </tr>
+      `;
+    }
+
+    function expandPassagensRenderLimit(targetId) {
+      const current = passagensRenderLimits[targetId] || PASSAGENS_BASE_RENDER_LIMIT;
+      passagensRenderLimits[targetId] = current + PASSAGENS_BASE_RENDER_LIMIT;
+      requestPassagensRender();
+    }
+    window.expandPassagensRenderLimit = expandPassagensRenderLimit;
+
+    function resetPassagensRenderLimits() {
+      passagensRenderLimits.pRows = 25;
+      passagensRenderLimits.pAirRows = PASSAGENS_BASE_RENDER_LIMIT;
+      passagensRenderLimits.pRoadRows = PASSAGENS_BASE_RENDER_LIMIT;
+      passagensRenderLimits.pHospRows = PASSAGENS_BASE_RENDER_LIMIT;
+      passagensRenderLimits.pCarRows = PASSAGENS_BASE_RENDER_LIMIT;
+    }
+
+    function requestPassagensRenderWithReset(delay = 0) {
+      resetPassagensRenderLimits();
+      requestPassagensRender(delay);
+    }
+
     function renderPassagensTable(targetId, rows, columns) {
       const body = document.getElementById(targetId);
       if (!rows.length) {
@@ -6008,7 +6057,8 @@ AMAURI BARROSO DE MOURA"></textarea>
         return;
       }
       if (targetId === 'pRows') {
-        body.innerHTML = rows.map(row => `
+        const visibleRows = visiblePassagensRows(targetId, rows);
+        body.innerHTML = visibleRows.map(row => `
           <tr class="compact-row row-main-click ${row.pagoConfirmado ? 'paid-row' : ''}" onclick="togglePassagemExpanded('${escapeHtml(row.key)}')">
             <td class="actioncell">${buildPassagemActions(row, false)}</td>
             <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
@@ -6022,11 +6072,12 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td>${row.pedido ? escapeHtml(row.pedido) : '<span class="pending">Pendente</span>'}</td>
           </tr>
           ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row, 'overview')}</td></tr>` : ''}
-        `).join('');
+        `).join('') + buildPassagensLoadMoreRow(targetId, columns, rows.length);
         return;
       }
       if (targetId === 'pAirRows' || targetId === 'pRoadRows') {
-        body.innerHTML = rows.map(row => `
+        const visibleRows = visiblePassagensRows(targetId, rows);
+        body.innerHTML = visibleRows.map(row => `
           <tr class="compact-row row-main-click ${row.pagoConfirmado ? 'paid-row' : ''}" onclick="togglePassagemExpanded('${escapeHtml(row.key)}')">
             <td class="actioncell">${buildPassagemActions(row, true)}</td>
             <td><span class="company">${escapeHtml(row.nome_colab || row.nome || '-')}</span></td>
@@ -6040,11 +6091,12 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td>${row.pedido ? escapeHtml(row.pedido) : '<span class="pending">Pendente</span>'}</td>
           </tr>
           ${passagemIsExpanded(row) ? `<tr class="detail-row"><td colspan="${columns}">${detailPassagemGrid(row, targetId)}</td></tr>` : ''}
-        `).join('');
+        `).join('') + buildPassagensLoadMoreRow(targetId, columns, rows.length);
         return;
       }
       if (targetId === 'pHospRows') {
-        body.innerHTML = rows.map(item => `
+        const visibleRows = visiblePassagensRows(targetId, rows);
+        body.innerHTML = visibleRows.map(item => `
           <tr class="compact-row row-main-click ${item.pago ? 'paid-row' : ''}" onclick="toggleExpandedEntity('hosp','${escapeHtml(item.id)}')">
             <td class="actioncell">
               <div class="actionstack">
@@ -6073,11 +6125,12 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td>${escapeHtml(item.observacao || '-')}</td>
           </tr>
           ${isExpandedEntity('hosp', item.id) ? `<tr class="detail-row"><td colspan="${columns}">${detailHospedagemGrid(item)}</td></tr>` : ''}
-        `).join('');
+        `).join('') + buildPassagensLoadMoreRow(targetId, columns, rows.length);
         return;
       }
       if (targetId === 'pCarRows') {
-        body.innerHTML = rows.map(item => `
+        const visibleRows = visiblePassagensRows(targetId, rows);
+        body.innerHTML = visibleRows.map(item => `
           <tr class="compact-row row-main-click ${item.pago ? 'paid-row' : ''}" onclick="toggleExpandedEntity('car','${escapeHtml(item.id)}')">
             <td class="actioncell">
               <div class="actionstack">
@@ -6102,7 +6155,7 @@ AMAURI BARROSO DE MOURA"></textarea>
             <td>${escapeHtml(item.observacao || '-')}</td>
           </tr>
           ${isExpandedEntity('car', item.id) ? `<tr class="detail-row"><td colspan="${columns}">${detailCarroGrid(item)}</td></tr>` : ''}
-        `).join('');
+        `).join('') + buildPassagensLoadMoreRow(targetId, columns, rows.length);
         return;
       }
     }
@@ -6673,7 +6726,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (!hMonthPicker.value) hMonthPicker.value = currentMonthKey();
       renderHitachi();
       if (!pMonthPicker.value) pMonthPicker.value = currentMonthKey();
-      renderPassagens();
+      requestPassagensRenderWithReset();
     });
     document.getElementById('dMonthMirror').addEventListener('change', event => {
       if (event.target.value) {
@@ -6685,18 +6738,18 @@ AMAURI BARROSO DE MOURA"></textarea>
     });
     document.getElementById('dq').addEventListener('input', renderDiarista);
     document.getElementById('hq').addEventListener('input', renderHitachi);
-    document.getElementById('pq').addEventListener('input', () => requestPassagensRender(180));
-    [pAirStart, pAirEnd, pRoadStart, pRoadEnd, pHospStart, pHospEnd, pCarStart, pCarEnd].forEach(input => input.addEventListener('change', () => requestPassagensRender()));
+    document.getElementById('pq').addEventListener('input', () => requestPassagensRenderWithReset(180));
+    [pAirStart, pAirEnd, pRoadStart, pRoadEnd, pHospStart, pHospEnd, pCarStart, pCarEnd].forEach(input => input.addEventListener('change', () => requestPassagensRenderWithReset()));
     document.getElementById('pAirClear').addEventListener('click', () => {
       pAirStart.value = '';
       pAirEnd.value = '';
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     });
     document.getElementById('pAirPdf').addEventListener('click', () => openPassagensPdf('air'));
     document.getElementById('pRoadClear').addEventListener('click', () => {
       pRoadStart.value = '';
       pRoadEnd.value = '';
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     });
     document.getElementById('pRoadPdf').addEventListener('click', () => openPassagensPdf('road'));
     hMonthPicker.addEventListener('change', () => {
@@ -6706,7 +6759,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     });
     pMonthPicker.addEventListener('change', () => {
       if (!pMonthPicker.value) pMonthPicker.value = currentMonthKey();
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     });
 
     document.getElementById('tabLoginForm').addEventListener('submit', event => {
@@ -7004,7 +7057,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     document.querySelectorAll('.toplink[data-p-view]').forEach(button => {
       button.addEventListener('click', () => {
         openPassagensView(button.dataset.pView);
-        requestPassagensRender();
+        requestPassagensRenderWithReset();
       });
     });
     document.getElementById('diaristaMonthForm').addEventListener('submit', async event => {
@@ -7065,31 +7118,31 @@ AMAURI BARROSO DE MOURA"></textarea>
     document.getElementById('pHospClear').addEventListener('click', () => {
       pHospStart.value = '';
       pHospEnd.value = '';
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     });
     document.getElementById('pCarClear').addEventListener('click', () => {
       pCarStart.value = '';
       pCarEnd.value = '';
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     });
     document.querySelectorAll('[data-p-air-tab]').forEach(button => button.addEventListener('click', () => {
       passagensAirTab = button.dataset.pAirTab || 'overview';
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     }));
     [...Object.values(pAirHeaderFilters), ...Object.values(pRoadHeaderFilters)].filter(Boolean).forEach(input => {
-      input.addEventListener('input', () => requestPassagensRender(160));
+      input.addEventListener('input', () => requestPassagensRenderWithReset(160));
     });
     document.querySelectorAll('[data-p-road-tab]').forEach(button => button.addEventListener('click', () => {
       passagensRoadTab = button.dataset.pRoadTab || 'overview';
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     }));
     document.querySelectorAll('[data-p-hosp-tab]').forEach(button => button.addEventListener('click', () => {
       passagensHospTab = button.dataset.pHospTab || 'overview';
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     }));
     document.querySelectorAll('[data-p-car-tab]').forEach(button => button.addEventListener('click', () => {
       passagensCarTab = button.dataset.pCarTab || 'overview';
-      requestPassagensRender();
+      requestPassagensRenderWithReset();
     }));
     document.getElementById('passagensConfigForm').addEventListener('submit', async event => {
       event.preventDefault();
