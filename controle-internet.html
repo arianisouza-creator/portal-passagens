@@ -2196,6 +2196,7 @@ AMAURI BARROSO DE MOURA"></textarea>
     let passagensCurrentView = 'overview';
     let passagensRenderTimer = null;
     let passagensRenderQueued = false;
+    let passagensDataCache = null;
     let editingHospedagemId = null;
     let editingCarroId = null;
     const passagensSelectedKeys = new Set();
@@ -2589,14 +2590,43 @@ AMAURI BARROSO DE MOURA"></textarea>
       passagensApiToken = (payload.passagensApiToken || passagensApiToken || '').trim();
       passagensApiBaseUrl = (payload.passagensApiBaseUrl || passagensApiBaseUrl || 'https://portalmse.com.br/microservices/hub_mse/api_passagens').trim().replace(/\/+$/, '');
       passagensLastSync = payload.passagensLastSync || '';
+      invalidatePassagensDataCache();
     }
 
-    function saveLocalCache() {
+    let localCacheSaveTimer = null;
+    let localCacheSaveQueued = false;
+
+    function flushLocalCacheSave() {
+      if (localCacheSaveTimer) {
+        clearTimeout(localCacheSaveTimer);
+        localCacheSaveTimer = null;
+      }
+      if (!localCacheSaveQueued) return;
+      localCacheSaveQueued = false;
       try {
         window.localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(serializeState()));
       } catch (error) {
         console.warn('Nao foi possivel salvar cache local.', error);
       }
+    }
+
+    function saveLocalCache(options = {}) {
+      const immediate = options === true || options.immediate === true;
+      if (immediate) {
+        localCacheSaveQueued = true;
+        flushLocalCacheSave();
+        return;
+      }
+      localCacheSaveQueued = true;
+      if (localCacheSaveTimer) return;
+      localCacheSaveTimer = window.setTimeout(() => {
+        localCacheSaveTimer = null;
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(() => flushLocalCacheSave(), { timeout: 400 });
+          return;
+        }
+        flushLocalCacheSave();
+      }, 120);
     }
 
     function loadLocalCache() {
@@ -2608,6 +2638,11 @@ AMAURI BARROSO DE MOURA"></textarea>
         return emptyPayload();
       }
     }
+
+    window.addEventListener('beforeunload', () => saveLocalCache({ immediate: true }));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') saveLocalCache({ immediate: true });
+    });
 
     function buildApiUrl(table, query = '') {
       return `${API_BASE_URL}/rest/v1/${table}${query ? `?${query}` : ''}`;
@@ -4969,7 +5004,9 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function allPassagensData() {
-      return sortPassagensRows(passagensRows.map(buildPassagemRow)).filter(item => !item.excluida);
+      if (passagensDataCache) return passagensDataCache;
+      passagensDataCache = sortPassagensRows(passagensRows.map(buildPassagemRow)).filter(item => !item.excluida);
+      return passagensDataCache;
     }
 
     function currentPassagensData() {
@@ -4991,6 +5028,10 @@ AMAURI BARROSO DE MOURA"></textarea>
 
     function todayPassagensData() {
       return allPassagensData().filter(item => normalizeDateValue(item.dataCompra) === todayKey());
+    }
+
+    function invalidatePassagensDataCache() {
+      passagensDataCache = null;
     }
 
     function filteredPassagens(rows, target = 'all') {
@@ -5164,15 +5205,16 @@ AMAURI BARROSO DE MOURA"></textarea>
         }
       }
       passagensComplements[key] = { ...complement };
+      invalidatePassagensDataCache();
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
     }
     window.togglePassagemFeature = togglePassagemFeature;
 
     function togglePassagemSelection(key) {
       if (passagensSelectedKeys.has(key)) passagensSelectedKeys.delete(key);
       else passagensSelectedKeys.add(key);
-      renderPassagens();
+      requestPassagensRender();
     }
     window.togglePassagemSelection = togglePassagemSelection;
 
@@ -5190,19 +5232,20 @@ AMAURI BARROSO DE MOURA"></textarea>
         };
       });
       passagensSelectedKeys.clear();
+      invalidatePassagensDataCache();
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
       setSyncStatus(`${rows.length} passagem(ns) marcadas como pagas no fechamento.`);
     }
 
     function toggleOverviewPanel(panelKey) {
       passagensOverviewCollapsed[panelKey] = !passagensOverviewCollapsed[panelKey];
-      renderPassagens();
+      requestPassagensRender();
     }
 
     function togglePassagensSection(panelKey) {
       passagensSectionCollapsed[panelKey] = !passagensSectionCollapsed[panelKey];
-      renderPassagens();
+      requestPassagensRender();
     }
 
     function togglePassagemExpanded(key) {
@@ -5214,7 +5257,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       } else {
         relatedKeys.forEach(candidate => expandedPassagemKeys.add(candidate));
       }
-      renderPassagens();
+      requestPassagensRender();
     }
     window.togglePassagemExpanded = togglePassagemExpanded;
 
@@ -5226,7 +5269,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       const key = expandedEntityKey(type, id);
       if (expandedPassagemKeys.has(key)) expandedPassagemKeys.delete(key);
       else expandedPassagemKeys.add(key);
-      renderPassagens();
+      requestPassagensRender();
     }
     window.toggleExpandedEntity = toggleExpandedEntity;
 
@@ -5811,7 +5854,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       editingHospedagemId = item.id;
       const key = expandedEntityKey('hosp', item.id);
       if (!expandedPassagemKeys.has(key)) expandedPassagemKeys.add(key);
-      renderPassagens();
+      requestPassagensRender();
     }
     window.editHospedagem = editHospedagem;
 
@@ -5822,7 +5865,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       editingCarroId = item.id;
       const key = expandedEntityKey('car', item.id);
       if (!expandedPassagemKeys.has(key)) expandedPassagemKeys.add(key);
-      renderPassagens();
+      requestPassagensRender();
     }
     window.editCarro = editCarro;
 
@@ -5832,7 +5875,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (!window.confirm('Deseja excluir esta hospedagem?')) return;
       passagensHospedagens.splice(index, 1);
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
       deletePassagemHospedagemRemote(id).catch(error => console.error(error));
     }
     window.deleteHospedagem = deleteHospedagem;
@@ -5843,7 +5886,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (!window.confirm('Deseja excluir este carro?')) return;
       passagensCarros.splice(index, 1);
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
       deletePassagemCarroRemote(id).catch(error => console.error(error));
     }
     window.deleteCarro = deleteCarro;
@@ -5853,7 +5896,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (!item) return;
       item.pago = !item.pago;
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
       upsertPassagemHospedagemRemote(item).catch(error => console.error(error));
     }
     window.toggleHospedagemPaid = toggleHospedagemPaid;
@@ -5863,7 +5906,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (!item) return;
       item.pago = !item.pago;
       saveLocalCache();
-      renderPassagens();
+      requestPassagensRender();
       upsertPassagemCarroRemote(item).catch(error => console.error(error));
     }
     window.toggleCarroPaid = toggleCarroPaid;
@@ -6306,8 +6349,9 @@ AMAURI BARROSO DE MOURA"></textarea>
         const manualRows = passagensRows.filter(item => String(item.tabela || '').toLowerCase() === 'manual');
         passagensRows.splice(0, passagensRows.length, ...syncedRows, ...manualRows);
         passagensLastSync = new Date().toLocaleTimeString('pt-BR');
+        invalidatePassagensDataCache();
         saveLocalCache();
-        renderPassagens();
+        requestPassagensRender();
         setSyncStatus(`Passagens sincronizadas da API em ${passagensLastSync} (${rows.length} registros)`);
         setPassagensConfigFeedback(`API conectada com sucesso. ${rows.length} registro(s) sincronizado(s).`, 'success');
       } catch (error) {
@@ -6322,30 +6366,30 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
 
     function editPassagem(key) {
-      const item = currentPassagensData().find(row => row.key === key) || passagensRows.map(buildPassagemRow).find(row => row.key === key);
+      const item = currentPassagensData().find(row => row.key === key) || allPassagensData().find(row => row.key === key);
       if (!item) return;
       if (!requestProtectedEdit('esta passagem')) return;
       editingPassagemKey = item.key || key;
       markPassagemExpanded(item);
-      renderPassagens();
+      requestPassagensRender();
     }
     window.editPassagem = editPassagem;
 
     function cancelInlinePassagemEdit() {
       editingPassagemKey = '';
-      renderPassagens();
+      requestPassagensRender();
     }
     window.cancelInlinePassagemEdit = cancelInlinePassagemEdit;
 
     function cancelInlineHospedagemEdit() {
       editingHospedagemId = null;
-      renderPassagens();
+      requestPassagensRender();
     }
     window.cancelInlineHospedagemEdit = cancelInlineHospedagemEdit;
 
     function cancelInlineCarroEdit() {
       editingCarroId = null;
-      renderPassagens();
+      requestPassagensRender();
     }
     window.cancelInlineCarroEdit = cancelInlineCarroEdit;
 
@@ -6394,6 +6438,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         row.valor_pago = formData.valorPago || row.valor_pago || '';
         row.observacao = formData.observacaoInterna || row.observacao || '';
       }
+      invalidatePassagensDataCache();
       return {
         currentComplement,
         storedKey
@@ -6414,7 +6459,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       } catch (error) {
         console.error(error);
       }
-      renderPassagens();
+      requestPassagensRender();
     }
     window.saveInlinePassagemEdit = saveInlinePassagemEdit;
 
@@ -6451,7 +6496,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       editingHospedagemId = null;
       saveLocalCache();
       upsertPassagemHospedagemRemote(item).catch(error => console.error(error));
-      renderPassagens();
+      requestPassagensRender();
     }
     window.saveInlineHospedagemEdit = saveInlineHospedagemEdit;
 
@@ -6482,12 +6527,12 @@ AMAURI BARROSO DE MOURA"></textarea>
       editingCarroId = null;
       saveLocalCache();
       upsertPassagemCarroRemote(item).catch(error => console.error(error));
-      renderPassagens();
+      requestPassagensRender();
     }
     window.saveInlineCarroEdit = saveInlineCarroEdit;
 
     function requestDeletePassagem(key) {
-      const item = currentPassagensData().find(row => row.key === key) || passagensRows.map(buildPassagemRow).find(row => row.key === key);
+      const item = currentPassagensData().find(row => row.key === key) || allPassagensData().find(row => row.key === key);
       if (!item) return;
       deletingPassagemKey = key;
       const form = document.getElementById('passagensDeleteForm');
@@ -7114,6 +7159,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         pagoConfirmado: Boolean(formData.pagoConfirmado),
         observacaoInterna: formData.observacao || ''
       };
+      invalidatePassagensDataCache();
       event.currentTarget.reset();
       saveLocalCache();
       try {
@@ -7123,7 +7169,7 @@ AMAURI BARROSO DE MOURA"></textarea>
         console.error(error);
       }
       openPassagensView('overview');
-      renderPassagens();
+      requestPassagensRender();
       setSyncStatus('Cadastro manual de passagem salvo para teste');
     });
     document.getElementById('passagensHotelManualForm').addEventListener('submit', event => {
@@ -7331,6 +7377,7 @@ AMAURI BARROSO DE MOURA"></textarea>
       for (let index = passagensCarros.length - 1; index >= 0; index -= 1) {
         if (passagensCarros[index].passagemKey === targetKey) passagensCarros.splice(index, 1);
       }
+      invalidatePassagensDataCache();
       deletingPassagemKey = '';
       event.currentTarget.reset();
       errorBox.style.display = 'none';
