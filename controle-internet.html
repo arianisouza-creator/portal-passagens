@@ -2197,7 +2197,8 @@ AMAURI BARROSO DE MOURA"></textarea>
     let passagensRenderTimer = null;
     let passagensRenderQueued = false;
     let passagensDataCache = null;
-    const PASSAGENS_BASE_RENDER_LIMIT = 40;
+    let passagensDerivedCache = {};
+    const PASSAGENS_BASE_RENDER_LIMIT = 20;
     const passagensRenderLimits = {
       pRows: 25,
       pAirRows: PASSAGENS_BASE_RENDER_LIMIT,
@@ -5017,6 +5018,105 @@ AMAURI BARROSO DE MOURA"></textarea>
       return passagensDataCache;
     }
 
+    function invalidatePassagensDerivedCache() {
+      passagensDerivedCache = {};
+    }
+
+    function cachedPassagensComputed(cacheKey, builder) {
+      if (Object.prototype.hasOwnProperty.call(passagensDerivedCache, cacheKey)) {
+        return passagensDerivedCache[cacheKey];
+      }
+      const value = builder();
+      passagensDerivedCache[cacheKey] = value;
+      return value;
+    }
+
+    function passagensHeaderFilterSignature(filterMap) {
+      return Object.entries(filterMap || {})
+        .map(([key, input]) => `${key}:${norm(input && typeof input.value !== 'undefined' ? input.value : '')}`)
+        .join('|');
+    }
+
+    function passagensOverviewData(allRows, currentMonth) {
+      const query = norm(document.getElementById('pq').value);
+      return cachedPassagensComputed(`overview|${currentMonth}|${query}`, () => {
+        const monthSourceRows = allRows.filter(item => monthKeyFromDate(item.dataCompra) === currentMonth);
+        const monthRows = filteredPassagens(monthSourceRows, 'all');
+        const todayRows = monthRows.filter(row => normalizeDateValue(row.dataCompra) === todayKey());
+        const totalPaidMonth = monthRows.reduce((sum, row) => sum + (row.valorPago || 0), 0);
+        const totalSavingsMonth = monthRows.reduce((sum, row) => sum + (row.economia || 0), 0);
+        const byObra = {};
+        const byMode = { Aereo: { count: 0, total: 0 }, Rodoviario: { count: 0, total: 0 } };
+        const savingsByObra = {};
+        monthRows.forEach(row => {
+          const obra = row.nome_obra || 'Sem obra';
+          byObra[obra] = (byObra[obra] || 0) + (row.valorPago || 0);
+          if (row.modalidade === 'Aereo' || row.modalidade === 'Rodoviario') {
+            byMode[row.modalidade].count += 1;
+            byMode[row.modalidade].total += row.valorPago || 0;
+          }
+          if (row.economia > 0) savingsByObra[obra] = (savingsByObra[obra] || 0) + row.economia;
+        });
+        return {
+          monthRows,
+          todayRows,
+          totalPaidMonth,
+          totalSavingsMonth,
+          byObra,
+          byMode,
+          savingsByObra
+        };
+      });
+    }
+
+    function passagensModeRowsCached(allRows, currentMonth, currentYear, mode, tabName, startValue, endValue, headerFilters) {
+      const query = norm(document.getElementById('pq').value);
+      const headerSignature = passagensHeaderFilterSignature(headerFilters);
+      return cachedPassagensComputed(
+        `mode|${mode}|${tabName}|${currentMonth}|${currentYear}|${query}|${startValue || ''}|${endValue || ''}|${headerSignature}`,
+        () => {
+          const monthSourceRows = allRows.filter(item => monthKeyFromDate(item.dataCompra) === currentMonth);
+          const yearSourceRows = allRows.filter(item => String(item.dataCompra || '').startsWith(currentYear));
+          return filterPassagensByHeader(
+            passagensListByMode(mode, tabName, startValue, endValue, monthSourceRows, yearSourceRows),
+            headerFilters
+          );
+        }
+      );
+    }
+
+    function passagensHospRowsCached() {
+      const query = norm(document.getElementById('pq').value);
+      return cachedPassagensComputed(
+        `hosp|${passagensHospTab}|${query}|${pHospStart.value || ''}|${pHospEnd.value || ''}`,
+        () => passagensHospedagens
+          .filter(item => (passagensHospTab === 'finalized' ? item.pago : true))
+          .filter(item => {
+            if (!queryMatch([item.nome, item.obra, item.hotel, item.cidade, item.motivo, item.numeroPedido, item.statusPedido])) return false;
+            const refDate = normalizeDateValue(item.checkIn || item.checkOut);
+            if (pHospStart.value && (!refDate || refDate < normalizeDateValue(pHospStart.value))) return false;
+            if (pHospEnd.value && (!refDate || refDate > normalizeDateValue(pHospEnd.value))) return false;
+            return true;
+          })
+      );
+    }
+
+    function passagensCarRowsCached() {
+      const query = norm(document.getElementById('pq').value);
+      return cachedPassagensComputed(
+        `car|${passagensCarTab}|${query}|${pCarStart.value || ''}|${pCarEnd.value || ''}`,
+        () => passagensCarros
+          .filter(item => (passagensCarTab === 'finalized' ? item.pago : true))
+          .filter(item => {
+            if (!queryMatch([item.motorista, item.obra, item.cidade, item.motivo, item.numeroPedido, item.numeroReserva, item.statusPedido])) return false;
+            const refDate = normalizeDateValue(item.retirada || item.devolucao);
+            if (pCarStart.value && (!refDate || refDate < normalizeDateValue(pCarStart.value))) return false;
+            if (pCarEnd.value && (!refDate || refDate > normalizeDateValue(pCarEnd.value))) return false;
+            return true;
+          })
+      );
+    }
+
     function currentPassagensData() {
       return allPassagensData().filter(item => monthKeyFromDate(item.dataCompra) === currentPassagensMonth());
     }
@@ -5040,6 +5140,7 @@ AMAURI BARROSO DE MOURA"></textarea>
 
     function invalidatePassagensDataCache() {
       passagensDataCache = null;
+      invalidatePassagensDerivedCache();
     }
 
     function filteredPassagens(rows, target = 'all') {
@@ -6184,24 +6285,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       const currentMonth = currentPassagensMonth();
       const currentYear = currentPassagensYear();
       const activeView = passagensCurrentView || 'overview';
-      const monthSourceRows = allRows.filter(item => monthKeyFromDate(item.dataCompra) === currentMonth);
-      const yearSourceRows = allRows.filter(item => String(item.dataCompra || '').startsWith(currentYear));
-      const monthRows = filteredPassagens(monthSourceRows, 'all');
-      const todayRows = monthRows.filter(row => normalizeDateValue(row.dataCompra) === todayKey());
-      const totalPaidMonth = monthRows.reduce((sum, row) => sum + (row.valorPago || 0), 0);
-      const totalSavingsMonth = monthRows.reduce((sum, row) => sum + (row.economia || 0), 0);
-      const byObra = {};
-      const byMode = { Aereo: { count: 0, total: 0 }, Rodoviario: { count: 0, total: 0 } };
-      const savingsByObra = {};
-      monthRows.forEach(row => {
-        const obra = row.nome_obra || 'Sem obra';
-        byObra[obra] = (byObra[obra] || 0) + (row.valorPago || 0);
-        if (row.modalidade === 'Aereo' || row.modalidade === 'Rodoviario') {
-          byMode[row.modalidade].count += 1;
-          byMode[row.modalidade].total += row.valorPago || 0;
-        }
-        if (row.economia > 0) savingsByObra[obra] = (savingsByObra[obra] || 0) + row.economia;
-      });
+      const overviewData = passagensOverviewData(allRows, currentMonth);
+      const { monthRows, todayRows, totalPaidMonth, totalSavingsMonth, byObra, byMode, savingsByObra } = overviewData;
 
       pMonthPicker.value = currentMonth;
       document.getElementById('pPageTitle').textContent = `Controle de Passagens | ${monthLabel(currentMonth)}`;
@@ -6257,8 +6342,14 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
 
       if (activeView === 'air') {
-        const airRangeRows = filterPassagensByHeader(
-          passagensListByMode('Aereo', passagensAirTab, pAirStart.value, pAirEnd.value, monthSourceRows, yearSourceRows),
+        const airRangeRows = passagensModeRowsCached(
+          allRows,
+          currentMonth,
+          currentYear,
+          'Aereo',
+          passagensAirTab,
+          pAirStart.value,
+          pAirEnd.value,
           pAirHeaderFilters
         );
         document.getElementById('pAirCount').textContent = `${airRangeRows.length} registro(s)`;
@@ -6276,8 +6367,14 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
 
       if (activeView === 'road') {
-        const roadRangeRows = filterPassagensByHeader(
-          passagensListByMode('Rodoviario', passagensRoadTab, pRoadStart.value, pRoadEnd.value, monthSourceRows, yearSourceRows),
+        const roadRangeRows = passagensModeRowsCached(
+          allRows,
+          currentMonth,
+          currentYear,
+          'Rodoviario',
+          passagensRoadTab,
+          pRoadStart.value,
+          pRoadEnd.value,
           pRoadHeaderFilters
         );
         document.getElementById('pRoadCount').textContent = `${roadRangeRows.length} registro(s)`;
@@ -6295,25 +6392,13 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
 
       if (activeView === 'hospedagem') {
-        const hospedagemRows = passagensHospedagens.filter(item => (passagensHospTab === 'finalized' ? item.pago : true)).filter(item => {
-          if (!queryMatch([item.nome, item.obra, item.hotel, item.cidade, item.motivo, item.numeroPedido, item.statusPedido])) return false;
-          const refDate = normalizeDateValue(item.checkIn || item.checkOut);
-          if (pHospStart.value && (!refDate || refDate < normalizeDateValue(pHospStart.value))) return false;
-          if (pHospEnd.value && (!refDate || refDate > normalizeDateValue(pHospEnd.value))) return false;
-          return true;
-        });
+        const hospedagemRows = passagensHospRowsCached();
         document.getElementById('pHospCount').textContent = `${hospedagemRows.length} registro(s)`;
         renderPassagensTable('pHospRows', hospedagemRows, 17);
       }
 
       if (activeView === 'carros') {
-        const carroRows = passagensCarros.filter(item => (passagensCarTab === 'finalized' ? item.pago : true)).filter(item => {
-          if (!queryMatch([item.motorista, item.obra, item.cidade, item.motivo, item.numeroPedido, item.numeroReserva, item.statusPedido])) return false;
-          const refDate = normalizeDateValue(item.retirada || item.devolucao);
-          if (pCarStart.value && (!refDate || refDate < normalizeDateValue(pCarStart.value))) return false;
-          if (pCarEnd.value && (!refDate || refDate > normalizeDateValue(pCarEnd.value))) return false;
-          return true;
-        });
+        const carroRows = passagensCarRowsCached();
         document.getElementById('pCarCount').textContent = `${carroRows.length} registro(s)`;
         renderPassagensTable('pCarRows', carroRows, 13);
       }
