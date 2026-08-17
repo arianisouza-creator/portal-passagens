@@ -908,8 +908,8 @@
             <p>Conferencie compras de passagens aereas, localizador, companhia e pedido interno.</p>
           </div>
           <div class="subtabs">
-            <button class="subtab on" type="button" data-p-air-tab="overview">Visao geral</button>
-            <button class="subtab" type="button" data-p-air-tab="pending">Pedidos pendentes</button>
+            <button class="subtab" type="button" data-p-air-tab="overview">Visao geral</button>
+            <button class="subtab on" type="button" data-p-air-tab="pending">Pedidos pendentes</button>
             <button class="subtab" type="button" data-p-air-tab="finalized">Pedidos finalizados</button>
           </div>
           <section class="card pad" style="margin-bottom:14px">
@@ -923,6 +923,7 @@
           </section>
           <div class="bulkbar">
             <div class="bulk-meta" id="pAirBulkLabel">Selecione os pedidos pagos para fechamento</div>
+            <button class="ghost" type="button" id="pAirSelectAll"><span data-icon="checkCheck"></span>Selecionar todas pendentes</button>
             <button class="primary" type="button" id="pAirFinalize"><span data-icon="badgeCheck"></span>Fechamento de passagens</button>
           </div>
           <section class="dashgrid" style="grid-template-columns:.9fr 1.1fr;margin-bottom:14px">
@@ -995,8 +996,8 @@
             <p>Conferencie trechos rodoviarios, conexoes, observacoes e numero do pedido final.</p>
           </div>
           <div class="subtabs">
-            <button class="subtab on" type="button" data-p-road-tab="overview">Visao geral</button>
-            <button class="subtab" type="button" data-p-road-tab="pending">Pedidos pendentes</button>
+            <button class="subtab" type="button" data-p-road-tab="overview">Visao geral</button>
+            <button class="subtab on" type="button" data-p-road-tab="pending">Pedidos pendentes</button>
             <button class="subtab" type="button" data-p-road-tab="finalized">Pedidos finalizados</button>
           </div>
           <section class="card pad" style="margin-bottom:14px">
@@ -1010,6 +1011,7 @@
           </section>
           <div class="bulkbar">
             <div class="bulk-meta" id="pRoadBulkLabel">Selecione os pedidos pagos para fechamento</div>
+            <button class="ghost" type="button" id="pRoadSelectAll"><span data-icon="checkCheck"></span>Selecionar todas pendentes</button>
             <button class="primary" type="button" id="pRoadFinalize"><span data-icon="badgeCheck"></span>Fechamento de passagens</button>
           </div>
           <section class="dashgrid" style="grid-template-columns:.9fr 1.1fr;margin-bottom:14px">
@@ -2189,8 +2191,8 @@ AMAURI BARROSO DE MOURA"></textarea>
     let passagensLastSync = '';
     let editingCreditoId = null;
     let deletingPassagemKey = '';
-    let passagensAirTab = 'overview';
-    let passagensRoadTab = 'overview';
+    let passagensAirTab = 'pending';
+    let passagensRoadTab = 'pending';
     let passagensHospTab = 'overview';
     let passagensCarTab = 'overview';
     let passagensCurrentView = 'overview';
@@ -5327,6 +5329,31 @@ AMAURI BARROSO DE MOURA"></textarea>
     }
     window.togglePassagemSelection = togglePassagemSelection;
 
+    function selectAllPendingPassagens(mode) {
+      const modeKey = mode === 'Aereo' ? 'Aereo' : 'Rodoviario';
+      const tabName = modeKey === 'Aereo' ? passagensAirTab : passagensRoadTab;
+      const headerFilters = modeKey === 'Aereo' ? pAirHeaderFilters : pRoadHeaderFilters;
+      const startValue = modeKey === 'Aereo' ? pAirStart.value : pRoadStart.value;
+      const endValue = modeKey === 'Aereo' ? pAirEnd.value : pRoadEnd.value;
+      const rows = passagensModeRowsCached(
+        allPassagensData(),
+        currentPassagensMonth(),
+        currentPassagensYear(),
+        modeKey,
+        tabName,
+        startValue,
+        endValue,
+        headerFilters
+      ).filter(row => !row.pagoConfirmado);
+      if (!rows.length) {
+        window.alert('Nao ha pedidos pendentes nesse filtro para selecionar.');
+        return;
+      }
+      rows.forEach(row => passagensSelectedKeys.add(row.key));
+      requestPassagensRender();
+    }
+    window.selectAllPendingPassagens = selectAllPendingPassagens;
+
     function finalizeSelectedPassagens(mode) {
       const rows = allPassagensData().filter(item => item.modalidade === mode && passagensSelectedKeys.has(item.key));
       if (!rows.length) {
@@ -6264,13 +6291,19 @@ AMAURI BARROSO DE MOURA"></textarea>
     function passagensListByMode(mode, tabName, startValue, endValue, monthRowsSource = null, yearRowsSource = null) {
       const monthBase = monthRowsSource || currentPassagensData();
       const yearBase = yearRowsSource || currentPassagensYearData();
+      let effectiveStart = startValue;
+      let effectiveEnd = endValue;
+      if (tabName === 'finalized') {
+        if (effectiveStart && !effectiveEnd) effectiveEnd = effectiveStart;
+        if (!effectiveStart && effectiveEnd) effectiveStart = effectiveEnd;
+      }
       const baseRows = tabName === 'finalized'
         ? yearBase.filter(item => item.modalidade === mode)
         : monthBase.filter(item => item.modalidade === mode);
       return filterPassagensByRange(
         applyPassagensStatusFilter(filteredPassagens(baseRows, mode === 'Aereo' ? 'air' : 'road'), tabName),
-        startValue,
-        endValue
+        effectiveStart,
+        effectiveEnd
       );
     }
 
@@ -6364,6 +6397,7 @@ AMAURI BARROSO DE MOURA"></textarea>
           ? `Finalizados do ano ${currentYear}`
           : `${passagensSelectedKeys.size} selecionada(s) para fechamento`;
         document.getElementById('pAirFinalize').classList.toggle('hidden', passagensAirTab === 'finalized');
+        document.getElementById('pAirSelectAll').classList.toggle('hidden', passagensAirTab === 'finalized');
       }
 
       if (activeView === 'road') {
@@ -6389,6 +6423,7 @@ AMAURI BARROSO DE MOURA"></textarea>
           ? `Finalizados do ano ${currentYear}`
           : `${passagensSelectedKeys.size} selecionada(s) para fechamento`;
         document.getElementById('pRoadFinalize').classList.toggle('hidden', passagensRoadTab === 'finalized');
+        document.getElementById('pRoadSelectAll').classList.toggle('hidden', passagensRoadTab === 'finalized');
       }
 
       if (activeView === 'hospedagem') {
@@ -7198,7 +7233,9 @@ AMAURI BARROSO DE MOURA"></textarea>
     document.getElementById('togglePAirBars').addEventListener('click', () => togglePassagensSection('airBars'));
     document.getElementById('togglePRoadSummary').addEventListener('click', () => togglePassagensSection('roadSummary'));
     document.getElementById('togglePRoadBars').addEventListener('click', () => togglePassagensSection('roadBars'));
+    document.getElementById('pAirSelectAll').addEventListener('click', () => selectAllPendingPassagens('Aereo'));
     document.getElementById('pAirFinalize').addEventListener('click', () => finalizeSelectedPassagens('Aereo'));
+    document.getElementById('pRoadSelectAll').addEventListener('click', () => selectAllPendingPassagens('Rodoviario'));
     document.getElementById('pRoadFinalize').addEventListener('click', () => finalizeSelectedPassagens('Rodoviario'));
     document.getElementById('pHospClear').addEventListener('click', () => {
       pHospStart.value = '';
