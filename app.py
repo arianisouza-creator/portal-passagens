@@ -9,6 +9,8 @@ Endpoints:
   GET    /rest/v1/<table>       -> SELECT * (com ?select=*&order=col.asc,...)
   POST   /rest/v1/<table>       -> upsert (INSERT ... ON DUPLICATE KEY UPDATE)
   DELETE /rest/v1/<table>       -> DELETE com filtro (?coluna=eq.valor)
+  POST   /api/fatura/analisar   -> le o PDF da fatura do cartao e casa cada
+                                    lancamento com uma passagem pelo localizador
 
 Configuração via variáveis de ambiente (ver .env.example):
   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
@@ -20,11 +22,16 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import unicodedata
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import pymysql
+import requests
 from flask import Flask, Response, abort, g, jsonify, request
 from pymysql.cursors import DictCursor
 
@@ -35,6 +42,8 @@ try:
 except Exception:  # dotenv é opcional
     pass
 
+import fatura_parser
+
 
 BASE_DIR = Path(__file__).resolve().parent
 HTML_FILE = BASE_DIR / "controle-internet.html"
@@ -42,6 +51,7 @@ PROJECT_CONFIG_FILE = BASE_DIR / "project-config.json"
 def _clean(value: str) -> str:
     return (value or "").strip()
 PASSAGENS_SEED_FILE = Path(__file__).with_name("passagens-import-seed.json")
+UPLOADS_TMP_DIR = BASE_DIR / "uploads" / "tmp"
 
 DEFAULT_PROJECT_CONFIG = {
     "key": "passagens",
@@ -177,6 +187,16 @@ TABLES: dict[str, dict] = {
         "json": ["data"],
         "bool": [],
     },
+    "passagens_fechamentos_fatura": {
+        "columns": ["id", "data", "updated_at"],
+        "json": ["data"],
+        "bool": [],
+    },
+    "passagens_fatura_rascunhos": {
+        "columns": ["id", "data", "updated_at"],
+        "json": ["data"],
+        "bool": [],
+    },
 }
 
 
@@ -245,12 +265,14 @@ def render_portal() -> str:
         "internet": "moduleInternet",
         "diarista": "moduleDiarista",
         "passagens": "modulePassagens",
+        "cartao": "moduleCartao",
         "hitachi": "moduleHitachi",
     }
     nav_map = {
         "internet": "navInternet",
         "diarista": "navDiarista",
         "passagens": "navPassagens",
+        "cartao": "navCartao",
         "hitachi": "navHitachi",
     }
     hide_ids = []
@@ -432,6 +454,150 @@ def rest(table: str):
     if "return=representation" in prefer:
         return jsonify(rows), 201
     return ("", 201)
+
+
+# --------------------------------------------------------------------------- #
+# Fechamento de cartao - le a fatura (PDF) e casa lancamentos de passagem
+# aerea com passagens ja cadastradas no sistema atual pelo localizador.
+# --------------------------------------------------------------------------- #
+def _to_float_valor(valor: Any) -> float | None:
+    if valor is None or valor == "":
+        return None
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    texto = str(valor).strip()
+    if "," in texto and texto.count(",") == 1 and texto.rfind(",") > texto.rfind("."):
+        texto = texto.replace(".", "").replace(",", ".")
+    try:
+        return float(texto)
+    except ValueError:
+        return None
+
+
+def _normalizar_texto(texto: str) -> str:
+    limpo = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode()
+    return re.sub(r"\s+", " ", limpo).strip().upper()
+
+
+def _first(item: dict, *chaves: str, default: str = "") -> str:
+    for chave in chaves:
+        valor = item.get(chave)
+        if valor not in (None, ""):
+            return valor
+    return default
+
+
+def _fetch_passagens_api() -> list[dict[str, Any]]:
+    base_url = _clean(os.getenv("PASSAGENS_API_BASE_URL", "")).rstrip("/")
+    token = _clean(os.getenv("PASSAGENS_API_TOKEN", ""))
+    if not base_url or not token:
+        return []
+    headers = {"Authorization": f"Bearer {token}"}
+    rows: list[dict[str, Any]] = []
+    page = 1
+    total_pages = 1
+    while page <= total_pages:
+        resp = requests.get(
+            f"{base_url}/v1/passagens",
+            params={"per_page": 200, "page": page, "order_by": "data_viagem", "order_dir": "DESC"},
+            headers=headers,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        rows.extend(payload.get("data") or [])
+        total_pages = int(payload.get("total_pages") or 1)
+        page += 1
+    return rows
+
+
+def _indexar_passagens_por_localizador() -> dict[str, dict[str, Any]]:
+    indice: dict[str, dict[str, Any]] = {}
+    for item in _fetch_passagens_api():
+        compra = item.get("compra") or {}
+        localizador = _first(item, "localizador") or _first(compra, "localizador")
+        localizador = str(localizador or "").strip().upper()[:6]
+        if not localizador:
+            continue
+        valor_pago = (
+            item.get("valor_pago")
+            or item.get("valor_aereo")
+            or item.get("valor_rodoviario")
+            or item.get("valor_referencia")
+        )
+        pedido = _first(item, "numero_pedido") or _first(compra, "numero_pedido")
+        nome = _first(item, "nome_colab", "nome", "nome_colaborador", "colaborador") or _first(
+            compra, "nome_colaborador", "colaborador"
+        )
+        indice[localizador] = {
+            "nome_colab": nome,
+            "pedido": pedido,
+            "valor_pago": valor_pago,
+            "companhia": _first(item, "companhia") or _first(compra, "companhia"),
+            "origem": _first(item, "origem") or _first(compra, "origem"),
+            "destino": _first(item, "destino") or _first(compra, "destino"),
+        }
+    return indice
+
+
+def _localizadores_ja_usados_em_fechamentos() -> set[str]:
+    usados: set[str] = set()
+    with get_db().cursor() as cur:
+        cur.execute("SELECT `data` FROM `passagens_fechamentos_fatura`")
+        for row in cur.fetchall():
+            data = row["data"]
+            data = json.loads(data) if isinstance(data, (str, bytes)) else (data or {})
+            for lanc in data.get("itens") or []:
+                localizador = _clean(str(lanc.get("localizador") or "")).upper()
+                if localizador:
+                    usados.add(localizador)
+    return usados
+
+
+@app.post("/api/fatura/analisar")
+def analisar_fatura():
+    file = request.files.get("fatura")
+    if not file or not file.filename:
+        abort(400, "Envie o arquivo da fatura (PDF).")
+    if not file.filename.lower().endswith(".pdf"):
+        abort(400, "A fatura precisa ser um arquivo PDF.")
+
+    UPLOADS_TMP_DIR.mkdir(parents=True, exist_ok=True)
+    tmp_path = UPLOADS_TMP_DIR / f"fatura-{uuid.uuid4().hex[:12]}.pdf"
+    file.save(tmp_path)
+    try:
+        resultado = fatura_parser.parse_fatura_pdf(str(tmp_path))
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"Nao consegui ler esse PDF: {exc}"}), 400
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    try:
+        indice = _indexar_passagens_por_localizador()
+    except requests.RequestException as exc:
+        indice = {}
+        resultado["aviso_api_passagens"] = (
+            "Nao consegui consultar a API de passagens pra sugerir os lancamentos "
+            f"(a fatura foi lida normalmente). Detalhe: {exc}"
+        )
+    ja_usados = _localizadores_ja_usados_em_fechamentos()
+    for pessoa in resultado.get("pessoas", []):
+        for lanc in pessoa.get("lancamentos", []):
+            localizador = str(lanc.get("localizador") or "").strip().upper()
+            passagem = indice.get(localizador) if localizador and localizador not in ja_usados else None
+            lanc["passagem_local"] = passagem
+            if passagem:
+                valor_local = _to_float_valor(passagem.get("valor_pago"))
+                valor_fatura = lanc.get("valor")
+                lanc["bate_valor"] = (
+                    abs(valor_local - valor_fatura) < 0.01
+                    if valor_local is not None and valor_fatura is not None
+                    else None
+                )
+    return jsonify(resultado)
 
 
 @app.after_request

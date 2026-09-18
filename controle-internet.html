@@ -337,6 +337,7 @@
           <button class="subitem on" id="navInternet" type="button">Internet</button>
           <button class="subitem" id="navDiarista" type="button">Diarista</button>
           <button class="subitem" id="navPassagens" type="button">Passagens</button>
+          <button class="subitem" id="navCartao" type="button">Fechamento de cartao</button>
         </div>
       </div>
       <div class="grp">Disciplinas</div>
@@ -1343,6 +1344,51 @@
         </div>
       </section>
 
+      <section class="module" id="moduleCartao">
+        <div class="subrow2">
+          <button class="sidetoggle" type="button" title="Recolher menu" aria-label="Recolher menu" data-icon="menu"></button>
+          <span class="ico" data-icon="dollar"></span>
+          <span class="lab">
+            <b>Fechamento de cartao</b>
+            <small>Confere a fatura do cartao corporativo contra as passagens compradas</small>
+          </span>
+        </div>
+
+        <div class="topmenu">
+          <button class="toplink on" data-c-view="analisar">Analisar fatura</button>
+          <button class="toplink" data-c-view="rascunhos">Rascunhos em andamento</button>
+          <button class="toplink" data-c-view="historico">Historico de fechamentos</button>
+        </div>
+
+        <div class="view on" id="cview-analisar">
+          <div class="hero">
+            <h1>Fechamento de cartao</h1>
+            <p>Suba o PDF da fatura Bradesco/Elo para separar os lancamentos por pessoa e casar as passagens aereas pelo localizador. Nada e gravado ate a conferencia ser confirmada.</p>
+          </div>
+
+          <section class="card pad">
+            <div class="chead"><span class="ti2">Fatura do cartao</span><span class="eyebrow" id="fcUploadStatus">Nenhum arquivo analisado ainda</span></div>
+            <div class="monthbar" style="grid-template-columns:1fr auto auto">
+              <div class="search"><span data-icon="fileText"></span><input type="file" id="fcFileInput" accept="application/pdf" style="border:0;background:transparent;width:100%;color:var(--ink)"></div>
+              <button class="primary" id="fcAnalisarBtn" type="button"><span data-icon="search"></span>Analisar fatura</button>
+              <button class="ghost" id="fcSalvarRascunhoBtn" type="button" style="display:none"><span data-icon="save"></span>Salvar rascunho</button>
+            </div>
+          </section>
+
+          <div id="fcResultadoWrap" style="margin-top:16px"></div>
+        </div>
+
+        <div class="view" id="cview-rascunhos">
+          <div class="hero"><h1>Rascunhos em andamento</h1><p>Faturas salvas no meio da conferencia para continuar depois.</p></div>
+          <section class="card table-card"><div class="pad" id="fcRascunhosList"></div></section>
+        </div>
+
+        <div class="view" id="cview-historico">
+          <div class="hero"><h1>Historico de fechamentos</h1><p>Fechamentos ja confirmados em Conferencia OK.</p></div>
+          <section class="card table-card"><div class="pad" id="fcHistoricoList"></div></section>
+        </div>
+      </section>
+
       <section class="module" id="moduleHitachi">
         <div class="subrow2">
           <button class="sidetoggle" type="button" title="Recolher menu" aria-label="Recolher menu" data-icon="menu"></button>
@@ -2056,16 +2102,26 @@ AMAURI BARROSO DE MOURA"></textarea>
       document.querySelector(`.toplink[data-p-view="${viewName}"]`).classList.add('on');
       document.getElementById(`pview-${viewName}`).classList.add('on');
     }
+    function openCartaoView(viewName) {
+      document.querySelectorAll('.toplink[data-c-view]').forEach(item => item.classList.remove('on'));
+      document.querySelectorAll('#moduleCartao .view').forEach(view => view.classList.remove('on'));
+      document.querySelector(`.toplink[data-c-view="${viewName}"]`).classList.add('on');
+      document.getElementById(`cview-${viewName}`).classList.add('on');
+      if (viewName === 'rascunhos') fcCarregarRascunhos();
+      if (viewName === 'historico') fcCarregarHistorico();
+    }
     function switchModule(moduleName) {
       currentModule = moduleName;
-      const isAdminModule = moduleName === 'internet' || moduleName === 'diarista' || moduleName === 'passagens';
+      const isAdminModule = moduleName === 'internet' || moduleName === 'diarista' || moduleName === 'passagens' || moduleName === 'cartao';
       document.getElementById('moduleInternet').classList.toggle('on', moduleName === 'internet');
       document.getElementById('moduleDiarista').classList.toggle('on', moduleName === 'diarista');
       document.getElementById('modulePassagens').classList.toggle('on', moduleName === 'passagens');
+      document.getElementById('moduleCartao').classList.toggle('on', moduleName === 'cartao');
       document.getElementById('moduleHitachi').classList.toggle('on', moduleName === 'hitachi');
       document.getElementById('navInternet').classList.toggle('on', moduleName === 'internet');
       document.getElementById('navDiarista').classList.toggle('on', moduleName === 'diarista');
       document.getElementById('navPassagens').classList.toggle('on', moduleName === 'passagens');
+      document.getElementById('navCartao').classList.toggle('on', moduleName === 'cartao');
       document.getElementById('navHitachi').classList.toggle('on', moduleName === 'hitachi');
       document.getElementById('adminToggle').classList.toggle('on', isAdminModule);
       document.getElementById('docsToggle').classList.toggle('on', moduleName === 'hitachi');
@@ -2075,6 +2131,313 @@ AMAURI BARROSO DE MOURA"></textarea>
       }
       document.getElementById('dMonthMirror').value = currentMonthKey();
     }
+
+    let fcResultado = null;
+    let fcRascunhoAtualId = null;
+    let fcRascunhoAtualNome = '';
+
+    function fcEsc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[ch]));
+    }
+
+    function fcLancId(pessoaIdx, lancIdx) {
+      return `${pessoaIdx}-${lancIdx}`;
+    }
+
+    async function fcAnalisar() {
+      const input = document.getElementById('fcFileInput');
+      const file = input.files && input.files[0];
+      if (!file) {
+        window.alert('Escolha o arquivo PDF da fatura antes de analisar.');
+        return;
+      }
+      const button = document.getElementById('fcAnalisarBtn');
+      const originalLabel = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = `${icon('refresh')}Analisando...`;
+      try {
+        const formData = new FormData();
+        formData.append('fatura', file);
+        const response = await fetch('/api/fatura/analisar', { method: 'POST', body: formData });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+        fcResultado = payload;
+        fcRascunhoAtualId = null;
+        fcRascunhoAtualNome = '';
+        (fcResultado.pessoas || []).forEach(pessoa => {
+          (pessoa.lancamentos || []).forEach(lanc => {
+            lanc.selecionado = !!lanc.passagem_local;
+            lanc.pedido = (lanc.passagem_local && lanc.passagem_local.pedido) || '';
+          });
+        });
+        const totalLancamentos = (fcResultado.pessoas || []).reduce((sum, p) => sum + (p.lancamentos || []).length, 0);
+        document.getElementById('fcUploadStatus').textContent = `${file.name} - ${(fcResultado.pessoas || []).length} pessoa(s), ${totalLancamentos} lancamento(s)`;
+        if (fcResultado.aviso_api_passagens) window.alert(fcResultado.aviso_api_passagens);
+        fcRenderResultado();
+      } catch (error) {
+        console.error(error);
+        window.alert(`Nao consegui analisar essa fatura. ${error.message || error}`);
+      } finally {
+        button.disabled = false;
+        button.innerHTML = originalLabel;
+      }
+    }
+
+    function fcStatusTag(lanc) {
+      if (!lanc.localizador) return `<span class="tag neutral"><span class="bullet"></span>Sem localizador</span>`;
+      if (!lanc.passagem_local) return `<span class="tag neutral"><span class="bullet"></span>Nao achei</span>`;
+      if (lanc.bate_valor === true) return `<span class="tag ok"><span class="bullet"></span>Bate valor</span>`;
+      if (lanc.bate_valor === false) return `<span class="tag warn"><span class="bullet"></span>Confira valor</span>`;
+      return `<span class="tag warn"><span class="bullet"></span>Confira</span>`;
+    }
+
+    function fcRenderResultado() {
+      const wrap = document.getElementById('fcResultadoWrap');
+      const salvarBtn = document.getElementById('fcSalvarRascunhoBtn');
+      if (!fcResultado || !(fcResultado.pessoas || []).length) {
+        wrap.innerHTML = '';
+        salvarBtn.style.display = 'none';
+        return;
+      }
+      salvarBtn.style.display = '';
+      wrap.innerHTML = fcResultado.pessoas.map((pessoa, pIdx) => {
+        const linhas = (pessoa.lancamentos || []).map((lanc, lIdx) => {
+          const id = fcLancId(pIdx, lIdx);
+          const podeSelecionar = !!lanc.passagem_local;
+          return `
+            <tr class="${lanc.selecionado ? 'paid-row' : ''}">
+              <td><input type="checkbox" data-fc-check="${id}" ${lanc.selecionado ? 'checked' : ''} ${podeSelecionar ? '' : 'disabled'}></td>
+              <td>${fcEsc(lanc.data)}</td>
+              <td>${fcEsc(lanc.historico)}</td>
+              <td>${fcEsc(lanc.companhia || '-')}</td>
+              <td>${fcEsc(lanc.localizador || '-')}</td>
+              <td class="money">${brl(lanc.valor)}</td>
+              <td>${fcStatusTag(lanc)}</td>
+              <td><input type="text" data-fc-pedido="${id}" value="${fcEsc(lanc.pedido || '')}" placeholder="Numero do pedido" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--ink)"></td>
+            </tr>`;
+        }).join('');
+        return `
+          <article class="card table-card" style="margin-bottom:14px">
+            <div class="pad" style="padding-bottom:0">
+              <div class="chead"><span class="ti2">${fcEsc(pessoa.nome)}</span><span class="eyebrow">${(pessoa.lancamentos || []).length} lancamento(s) - total ${brl(pessoa.total)}</span></div>
+            </div>
+            <div style="overflow:auto">
+              <table>
+                <thead><tr><th></th><th>Data</th><th>Historico</th><th>Companhia</th><th>Localizador</th><th>Valor</th><th>Status</th><th>Pedido</th></tr></thead>
+                <tbody>${linhas}</tbody>
+              </table>
+            </div>
+          </article>`;
+      }).join('') + `
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button class="ghost" id="fcSalvarRascunhoBtn2" type="button">${icon('save')}Salvar rascunho</button>
+          <button class="primary" id="fcConferenciaOkBtn" type="button">${icon('badgeCheck')}Conferencia OK</button>
+        </div>`;
+
+      wrap.querySelectorAll('[data-fc-check]').forEach(input => {
+        input.addEventListener('change', () => {
+          const [pIdx, lIdx] = input.dataset.fcCheck.split('-').map(Number);
+          fcResultado.pessoas[pIdx].lancamentos[lIdx].selecionado = input.checked;
+          input.closest('tr').classList.toggle('paid-row', input.checked);
+        });
+      });
+      wrap.querySelectorAll('[data-fc-pedido]').forEach(input => {
+        input.addEventListener('input', () => {
+          const [pIdx, lIdx] = input.dataset.fcPedido.split('-').map(Number);
+          fcResultado.pessoas[pIdx].lancamentos[lIdx].pedido = input.value;
+        });
+      });
+      document.getElementById('fcSalvarRascunhoBtn2')?.addEventListener('click', fcSalvarRascunho);
+      document.getElementById('fcConferenciaOkBtn')?.addEventListener('click', fcConferenciaOk);
+    }
+
+    async function fcSalvarRascunho() {
+      if (!fcResultado) return;
+      const sugestao = fcRascunhoAtualNome || (fcResultado.pessoas || []).map(p => p.nome).join(', ');
+      const nome = window.prompt('Nome pra reconhecer esse rascunho depois:', sugestao);
+      if (!nome) return;
+      fcRascunhoAtualNome = nome;
+      fcRascunhoAtualId = fcRascunhoAtualId || String(createId());
+      try {
+        await apiRequest('passagens_fatura_rascunhos', {
+          method: 'POST',
+          prefer: 'resolution=merge-duplicates,return=representation',
+          body: [{ id: fcRascunhoAtualId, data: { nome, resultado: fcResultado, salvoEm: new Date().toISOString() } }]
+        });
+        document.getElementById('fcUploadStatus').textContent = `Rascunho "${nome}" salvo`;
+      } catch (error) {
+        console.error(error);
+        window.alert('Nao consegui salvar o rascunho.');
+      }
+    }
+
+    async function fcCarregarRascunhos() {
+      const holder = document.getElementById('fcRascunhosList');
+      holder.innerHTML = '<div class="empty-state">Carregando...</div>';
+      try {
+        const rows = await apiRequest('passagens_fatura_rascunhos', { query: 'select=*&order=updated_at.desc' });
+        if (!rows.length) {
+          holder.innerHTML = '<div class="empty-state"><b>Nenhum rascunho salvo.</b>Analise uma fatura e clique em Salvar rascunho para continuar depois.</div>';
+          return;
+        }
+        holder.innerHTML = rows.map(row => {
+          const data = row.data || {};
+          const salvoEm = data.salvoEm ? new Date(data.salvoEm).toLocaleString('pt-BR') : '';
+          return `
+            <div class="li">
+              <div><b class="link">${fcEsc(data.nome || 'Rascunho')}</b><div class="lisub">Salvo em ${fcEsc(salvoEm)}</div></div>
+              <div style="display:flex;gap:8px">
+                <button class="inline-btn" data-fc-continuar="${fcEsc(row.id)}" type="button">Continuar</button>
+                <button class="rowact" data-fc-excluir-rascunho="${fcEsc(row.id)}" type="button" title="Excluir">${icon('trash', 16)}</button>
+              </div>
+            </div>`;
+        }).join('');
+        holder.querySelectorAll('[data-fc-continuar]').forEach(btn => {
+          btn.addEventListener('click', () => fcContinuarRascunho(btn.dataset.fcContinuar, rows));
+        });
+        holder.querySelectorAll('[data-fc-excluir-rascunho]').forEach(btn => {
+          btn.addEventListener('click', () => fcExcluirRascunho(btn.dataset.fcExcluirRascunho));
+        });
+      } catch (error) {
+        console.error(error);
+        holder.innerHTML = '<div class="empty-state">Nao consegui carregar os rascunhos.</div>';
+      }
+    }
+
+    function fcContinuarRascunho(id, rows) {
+      const row = rows.find(r => String(r.id) === String(id));
+      if (!row) return;
+      const data = row.data || {};
+      fcResultado = data.resultado || { pessoas: [] };
+      fcRascunhoAtualId = String(id);
+      fcRascunhoAtualNome = data.nome || '';
+      document.getElementById('fcUploadStatus').textContent = `Continuando rascunho "${fcRascunhoAtualNome}"`;
+      openCartaoView('analisar');
+      fcRenderResultado();
+    }
+
+    async function fcExcluirRascunho(id) {
+      if (!window.confirm('Excluir este rascunho? Isso nao afeta nenhuma passagem ja registrada.')) return;
+      try {
+        await apiRequest('passagens_fatura_rascunhos', { method: 'DELETE', query: `id=eq.${encodeURIComponent(id)}` });
+        fcCarregarRascunhos();
+      } catch (error) {
+        console.error(error);
+        window.alert('Nao consegui excluir o rascunho.');
+      }
+    }
+
+    async function fcConferenciaOk() {
+      if (!fcResultado) return;
+      const itens = [];
+      (fcResultado.pessoas || []).forEach(pessoa => {
+        (pessoa.lancamentos || []).forEach(lanc => {
+          if (!lanc.selecionado) return;
+          itens.push({
+            pessoa: pessoa.nome,
+            data: lanc.data,
+            historico: lanc.historico,
+            valor: lanc.valor,
+            companhia: lanc.companhia || '',
+            localizador: lanc.localizador || '',
+            pedido: lanc.pedido || ''
+          });
+        });
+      });
+      if (!itens.length) {
+        window.alert('Marque pelo menos um lancamento antes de confirmar.');
+        return;
+      }
+      if (!window.confirm(`Confirmar a conferencia de ${itens.length} lancamento(s)?`)) return;
+      try {
+        await apiRequest('passagens_fechamentos_fatura', {
+          method: 'POST',
+          prefer: 'resolution=merge-duplicates,return=representation',
+          body: [{ id: String(createId()), data: { itens, confirmadoEm: new Date().toISOString() } }]
+        });
+        if (fcRascunhoAtualId) {
+          await apiRequest('passagens_fatura_rascunhos', { method: 'DELETE', query: `id=eq.${encodeURIComponent(fcRascunhoAtualId)}` });
+        }
+        fcResultado = null;
+        fcRascunhoAtualId = null;
+        fcRascunhoAtualNome = '';
+        document.getElementById('fcFileInput').value = '';
+        document.getElementById('fcUploadStatus').textContent = 'Fechamento registrado - nenhum arquivo analisado ainda';
+        fcRenderResultado();
+        window.alert('Conferencia registrada no Historico de fechamentos.');
+      } catch (error) {
+        console.error(error);
+        window.alert('Nao consegui registrar a conferencia.');
+      }
+    }
+
+    async function fcCarregarHistorico() {
+      const holder = document.getElementById('fcHistoricoList');
+      holder.innerHTML = '<div class="empty-state">Carregando...</div>';
+      try {
+        const rows = await apiRequest('passagens_fechamentos_fatura', { query: 'select=*&order=updated_at.desc' });
+        if (!rows.length) {
+          holder.innerHTML = '<div class="empty-state"><b>Nenhum fechamento registrado ainda.</b>Analise uma fatura e clique em Conferencia OK para ela aparecer aqui.</div>';
+          return;
+        }
+        holder.innerHTML = rows.map(row => {
+          const data = row.data || {};
+          const itens = data.itens || [];
+          const confirmadoEm = data.confirmadoEm ? new Date(data.confirmadoEm).toLocaleString('pt-BR') : '';
+          const totalValor = itens.reduce((sum, item) => sum + (Number(item.valor) || 0), 0);
+          const itensHtml = itens.map(item => `
+            <tr>
+              <td>${fcEsc(item.pessoa)}</td>
+              <td>${fcEsc(item.data)}</td>
+              <td>${fcEsc(item.historico)}</td>
+              <td class="money">${brl(item.valor)}</td>
+              <td>${fcEsc(item.pedido || '-')}</td>
+            </tr>`).join('');
+          return `
+            <div class="li" style="display:block">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <div><b class="link">${itens.length} lancamento(s) - ${brl(totalValor)}</b><div class="lisub">Confirmado em ${fcEsc(confirmadoEm)}</div></div>
+                <div style="display:flex;gap:8px">
+                  <button class="rowact" data-fc-expandir="${fcEsc(row.id)}" type="button" title="Ver itens">${icon('chevronDown', 16)}</button>
+                  <button class="rowact" data-fc-excluir-historico="${fcEsc(row.id)}" type="button" title="Excluir">${icon('trash', 16)}</button>
+                </div>
+              </div>
+              <div id="fc-hist-detalhe-${fcEsc(row.id)}" style="display:none;margin-top:10px;overflow:auto">
+                <table>
+                  <thead><tr><th>Pessoa</th><th>Data</th><th>Historico</th><th>Valor</th><th>Pedido</th></tr></thead>
+                  <tbody>${itensHtml}</tbody>
+                </table>
+              </div>
+            </div>`;
+        }).join('');
+        holder.querySelectorAll('[data-fc-expandir]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const el = document.getElementById(`fc-hist-detalhe-${btn.dataset.fcExpandir}`);
+            if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+          });
+        });
+        holder.querySelectorAll('[data-fc-excluir-historico]').forEach(btn => {
+          btn.addEventListener('click', () => fcExcluirHistorico(btn.dataset.fcExcluirHistorico));
+        });
+      } catch (error) {
+        console.error(error);
+        holder.innerHTML = '<div class="empty-state">Nao consegui carregar o historico.</div>';
+      }
+    }
+
+    async function fcExcluirHistorico(id) {
+      if (!window.confirm('Excluir este fechamento do historico? Os lancamentos dele poderao ser sugeridos de novo numa proxima fatura.')) return;
+      try {
+        await apiRequest('passagens_fechamentos_fatura', { method: 'DELETE', query: `id=eq.${encodeURIComponent(id)}` });
+        fcCarregarHistorico();
+      } catch (error) {
+        console.error(error);
+        window.alert('Nao consegui excluir do historico.');
+      }
+    }
+
     function refreshProtectedViews() {
       document.getElementById('accessAuth').style.display = protectedAuthenticated ? 'none' : 'block';
       document.getElementById('accessContent').style.display = protectedAuthenticated ? 'block' : 'none';
@@ -5111,17 +5474,18 @@ AMAURI BARROSO DE MOURA"></textarea>
         const todayRows = monthRows.filter(row => normalizeDateValue(row.dataCompra) === todayKey());
         const totalPaidMonth = monthRows.reduce((sum, row) => sum + (row.valorPago || 0), 0);
         const totalSavingsMonth = monthRows.reduce((sum, row) => sum + (row.economia || 0), 0);
-        const byObra = {};
         const byMode = { Aereo: { count: 0, total: 0 }, Rodoviario: { count: 0, total: 0 } };
-        const savingsByObra = {};
         monthRows.forEach(row => {
-          const obra = row.nome_obra || 'Sem obra';
-          byObra[obra] = (byObra[obra] || 0) + (row.valorPago || 0);
           if (row.modalidade === 'Aereo' || row.modalidade === 'Rodoviario') {
             byMode[row.modalidade].count += 1;
             byMode[row.modalidade].total += row.valorPago || 0;
           }
-          if (row.economia > 0) savingsByObra[obra] = (savingsByObra[obra] || 0) + row.economia;
+        });
+        const byObra = {};
+        groupPorObra(monthRows, row => row.valorPago || 0).forEach(item => { byObra[item.obra] = item.total; });
+        const savingsByObra = {};
+        groupPorObra(monthRows.filter(row => row.economia > 0), row => row.economia || 0).forEach(item => {
+          savingsByObra[item.obra] = item.total;
         });
         return {
           monthRows,
@@ -5681,22 +6045,66 @@ AMAURI BARROSO DE MOURA"></textarea>
       });
     }
 
+    function normalizeObraKey(nome) {
+      return String(nome || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toUpperCase();
+    }
+
+    function levenshteinDistance(a, b) {
+      const m = a.length, n = b.length;
+      if (m === 0) return n;
+      if (n === 0) return m;
+      let prev = Array.from({ length: n + 1 }, (_, j) => j);
+      for (let i = 1; i <= m; i++) {
+        const curr = [i];
+        for (let j = 1; j <= n; j++) {
+          curr[j] = a[i - 1] === b[j - 1]
+            ? prev[j - 1]
+            : 1 + Math.min(prev[j - 1], prev[j], curr[j - 1]);
+        }
+        prev = curr;
+      }
+      return prev[n];
+    }
+
+    function groupPorObra(rows, valueFn) {
+      const buckets = [];
+      rows.forEach(row => {
+        const raw = (row.nome_obra && String(row.nome_obra).trim()) || 'Sem obra';
+        const key = normalizeObraKey(raw);
+        const keyDigits = key.replace(/[^0-9]/g, '');
+        let bucket = buckets.find(b => b.key === key);
+        if (!bucket) {
+          bucket = buckets.find(b =>
+            key.length >= 4 && b.key.length >= 4 &&
+            Math.abs(b.key.length - key.length) <= 1 &&
+            b.digits === keyDigits &&
+            levenshteinDistance(b.key, key) <= 1
+          );
+        }
+        if (!bucket) {
+          bucket = { key, digits: keyDigits, total: 0, labelCounts: {} };
+          buckets.push(bucket);
+        }
+        bucket.labelCounts[raw] = (bucket.labelCounts[raw] || 0) + 1;
+        bucket.total += valueFn(row) || 0;
+      });
+      return buckets.map(bucket => ({
+        obra: Object.entries(bucket.labelCounts).sort((a, b) => b[1] - a[1])[0][0],
+        total: bucket.total
+      }));
+    }
+
     function summarizePassagens(rows) {
       const totalPaid = rows.reduce((sum, row) => sum + (row.valorPago || 0), 0);
       const totalSavings = rows.reduce((sum, row) => sum + (row.economia || 0), 0);
-      const obraMap = {};
-      rows.forEach(row => {
-        const obra = row.nome_obra || 'Sem obra';
-        if (!obraMap[obra]) obraMap[obra] = { total: 0 };
-        obraMap[obra].total += row.valorPago || 0;
-      });
       return {
         totalPaid,
         totalSavings,
-        obraEntries: Object.entries(obraMap).map(([obra, info]) => ({
-          obra,
-          total: info.total
-        })).sort((a, b) => b.total - a.total)
+        obraEntries: groupPorObra(rows, row => row.valorPago || 0).sort((a, b) => b.total - a.total)
       };
     }
 
@@ -7329,6 +7737,9 @@ AMAURI BARROSO DE MOURA"></textarea>
         requestPassagensRenderWithReset();
       });
     });
+    document.querySelectorAll('.toplink[data-c-view]').forEach(button => {
+      button.addEventListener('click', () => openCartaoView(button.dataset.cView));
+    });
     document.getElementById('diaristaMonthForm').addEventListener('submit', async event => {
       event.preventDefault();
       const formData = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -7355,7 +7766,10 @@ AMAURI BARROSO DE MOURA"></textarea>
     document.getElementById('navInternet').addEventListener('click', () => switchModule('internet'));
     document.getElementById('navDiarista').addEventListener('click', () => switchModule('diarista'));
     document.getElementById('navPassagens').addEventListener('click', () => switchModule('passagens'));
+    document.getElementById('navCartao').addEventListener('click', () => switchModule('cartao'));
     document.getElementById('navHitachi').addEventListener('click', () => switchModule('hitachi'));
+    document.getElementById('fcAnalisarBtn')?.addEventListener('click', fcAnalisar);
+    document.getElementById('fcSalvarRascunhoBtn')?.addEventListener('click', fcSalvarRascunho);
     document.getElementById('syncPassagens').addEventListener('click', syncPassagensData);
     document.getElementById('openPassagensConfig').addEventListener('click', () => {
       const form = document.getElementById('passagensConfigForm');

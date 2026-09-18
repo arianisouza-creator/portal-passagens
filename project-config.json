@@ -6,5 +6,5 @@
   "brandSubtitle": "Integracao operacional com API",
   "greeting": "Boa tarde. Bem-vinda ao Portal Passagens.",
   "defaultModule": "passagens",
-  "enabledModules": ["passagens"]
+  "enabledModules": ["passagens", "cartao"]
 }
