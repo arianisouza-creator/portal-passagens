@@ -52,6 +52,14 @@
     .uinfo b,.user b{display:block;font-size:13px;color:#fff}
     .uinfo small,.user small{font-size:9.5px;letter-spacing:.5px;color:rgba(255,255,255,.5)}
     .ticker{background:#fff;border-bottom:1px solid var(--line)}
+    /* Pedido da Ariani (2026-09-21): tirar a barra de links de topo, a faixa
+       de status/saudacao, Disciplinas > Gestao documental e o botao flutuante
+       de chat sem apagar os elementos que o JavaScript ainda referencia. */
+    .utilitybar,
+    .ticker,
+    .fab,
+    #disciplinesLabel,
+    #docsBlock{display:none!important}
     .trow{max-width:var(--maxw);margin:auto;height:46px;padding:0 28px;display:flex;align-items:center;gap:0}
     .greet{padding-right:18px;font:600 13px "IBM Plex Sans",system-ui,sans-serif;color:var(--ink);white-space:nowrap}
     .tscroll{display:flex;align-items:center;min-width:0;flex:1;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 90px),transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 90px),transparent)}
@@ -340,7 +348,7 @@
           <button class="subitem" id="navCartao" type="button">Fechamento de cartao</button>
         </div>
       </div>
-      <div class="grp">Disciplinas</div>
+      <div class="grp" id="disciplinesLabel">Disciplinas</div>
       <div class="navblock open" id="docsBlock" style="margin-top:10px">
         <button class="nv" id="docsToggle" type="button">
           <span class="ni" data-icon="folder"></span>
