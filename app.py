@@ -197,7 +197,35 @@ TABLES: dict[str, dict] = {
         "json": ["data"],
         "bool": [],
     },
+    "passagens_pontos": {
+        "columns": ["id", "data", "updated_at"],
+        "json": ["data"],
+        "bool": [],
+    },
 }
+
+# Tabelas criadas automaticamente na primeira chamada, para nao depender de
+# rodar o mysql-schema.sql manualmente no servidor.
+AUTO_CREATE_TABLES: dict[str, str] = {
+    "passagens_pontos": (
+        "CREATE TABLE IF NOT EXISTS `passagens_pontos` ("
+        " id VARCHAR(191) NOT NULL,"
+        " `data` JSON NOT NULL,"
+        " updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+        " PRIMARY KEY (id)"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ),
+}
+_AUTO_CREATED: set[str] = set()
+
+
+def ensure_table(db, table: str) -> None:
+    ddl = AUTO_CREATE_TABLES.get(table)
+    if not ddl or table in _AUTO_CREATED:
+        return
+    with db.cursor() as cur:
+        cur.execute(ddl)
+    _AUTO_CREATED.add(table)
 
 
 app = Flask(__name__)
@@ -410,6 +438,7 @@ def rest(table: str):
 
     meta = _validate_table(table)
     db = get_db()
+    ensure_table(db, table)
 
     if request.method == "GET":
         where, values = _build_filters(table)

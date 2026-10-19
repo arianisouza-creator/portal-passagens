@@ -277,6 +277,44 @@
     .pending-mail-item li+li{margin-top:4px}
     .helper{font-size:12px;color:var(--body)}
     @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+    /* ===== Controle de Pontos ===== */
+    .pts-herorow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:2px}
+    .pts-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .pts-prog{padding:16px}
+    .pts-dot{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:16px}
+    .pts-sub{font:500 10px "IBM Plex Mono",monospace;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+    .pts-label{font:600 10px "IBM Plex Mono",monospace;color:var(--mut);text-transform:uppercase;letter-spacing:1px}
+    .pts-val{font-size:24px;font-weight:700;color:var(--ink);margin:2px 0 10px}
+    .pts-val small{font-size:12px;color:var(--mut);font-weight:600}
+    .pts-val.neg{color:var(--red)}
+    .pts-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--body);padding:5px 0;border-top:1px solid var(--line-2)}
+    .pts-row b{color:var(--ink)}
+    .pts-exp{margin-top:10px;font-size:11px;border-radius:8px;padding:7px 9px;background:#f4f6f9;color:#667085}
+    .pts-exp.w{background:rgba(217,145,26,.12);color:#9a6408;font-weight:600}
+    .pts-px{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-2)}
+    .pts-px:last-child{border-bottom:0}
+    .pts-px b{display:block;font-size:13px;color:var(--ink)}
+    .pts-px small{font-size:11px;color:var(--mut)}
+    .pts-px span.v{font-weight:700;font-size:13px;color:#1b3974;white-space:nowrap}
+    .pts-av{width:34px;height:34px;border-radius:999px;background:#edf4ff;color:var(--blue);display:grid;place-items:center;font-weight:700;font-size:12px}
+    .pts-stack{display:flex;height:14px;border-radius:999px;overflow:hidden;margin:6px 0 14px;background:#eef2f7}
+    .pts-leg{display:grid;gap:8px;font-size:12px;color:var(--body)}
+    .pts-leg div{display:flex;justify-content:space-between;gap:10px}
+    .pts-leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px}
+    .pts-tag{display:inline-flex;border-radius:999px;padding:4px 10px;font:600 11px "IBM Plex Sans",system-ui,sans-serif;white-space:nowrap}
+    .pts-num{text-align:right;font-weight:700;color:var(--ink);white-space:nowrap}
+    .pts-num.pos{color:var(--green)}
+    .pts-num.neg{color:var(--ink)}
+    th.pts-r{text-align:right}
+    .pts-chips{display:flex;gap:8px;flex-wrap:wrap}
+    .pts-chip{height:32px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:0 12px;font-size:12px;color:var(--body)}
+    .pts-chip.on{background:#eef3fe;border-color:#d8e3fb;color:#1a4fd6;font-weight:600}
+    .pts-acts{display:flex;gap:6px;justify-content:flex-end}
+    .pts-acts .rowact{width:30px;height:30px}
+    .pts-acts .rowact svg{width:15px;height:15px}
+    .pts-hint{grid-column:1 / -1;font-size:12px;border-radius:10px;padding:9px 11px;background:#eef4ff;color:#1d4ed8;display:none}
+    @media (max-width:1280px){#pview-pontos .pts-grid4{grid-template-columns:repeat(2,1fr)!important}#pview-pontos .dashgrid{grid-template-columns:1fr!important}}
+    @media (max-width:640px){#pview-pontos .pts-grid4{grid-template-columns:1fr!important}}
   </style>
 </head>
 <body>
@@ -742,6 +780,7 @@
           <button class="toplink" data-p-view="cadastro">Cadastro</button>
           <button class="toplink" data-p-view="creditos">Creditos</button>
           <button class="toplink" data-p-view="kpi">KPI</button>
+          <button class="toplink" data-p-view="pontos">Pontos</button>
         </div>
 
         <div class="view on" id="pview-overview">
@@ -1348,6 +1387,63 @@
                 <tbody id="pCreditRows"></tbody>
               </table>
             </div>
+          </section>
+        </div>
+        <div class="view" id="pview-pontos">
+          <div class="pts-herorow">
+            <div class="hero">
+              <h1 id="ptsTitle">Controle de Pontos</h1>
+              <p>Saldo dos programas de pontos e onde cada ponto foi usado: passageiro e centro de custo.</p>
+            </div>
+            <div class="pts-actions">
+              <button class="ghost" type="button" id="ptsBtnAjuste"><span data-icon="settings2"></span>Ajustar saldo</button>
+              <button class="ghost" type="button" id="ptsBtnEntrada"><span data-icon="plus"></span>Entrada / Transferencia</button>
+              <button class="primary" type="button" id="ptsBtnUso"><span data-icon="star"></span>Registrar emissao com pontos</button>
+            </div>
+          </div>
+
+          <section class="kpis pts-grid4" id="ptsCards" style="grid-template-columns:repeat(4,1fr)"></section>
+
+          <section class="dashgrid" style="grid-template-columns:1.15fr 1fr .85fr">
+            <article class="card pad">
+              <div class="chead"><span class="ti2">Pontos por centro de custo</span><span class="eyebrow" id="ptsCcLabel">0 pts</span></div>
+              <div class="bars" id="ptsCcBars"></div>
+            </article>
+            <article class="card pad">
+              <div class="chead"><span class="ti2">Por passageiro</span><span class="eyebrow">Mes selecionado</span></div>
+              <div id="ptsPaxList"></div>
+            </article>
+            <article class="card pad">
+              <div class="chead"><span class="ti2">Saldo por programa</span><span class="eyebrow" id="ptsTotalLabel">0 pts</span></div>
+              <div id="ptsStack"></div>
+            </article>
+          </section>
+
+          <section class="card table-card">
+            <div class="pad chead" style="margin:0;border-bottom:1px solid var(--line);flex-wrap:wrap">
+              <span class="ti2">Movimentacoes de pontos</span>
+              <div class="pts-chips" id="ptsChips"></div>
+            </div>
+            <div style="overflow:auto">
+              <table style="min-width:960px">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Programa</th>
+                    <th>Passageiro</th>
+                    <th>Centro de custo</th>
+                    <th>Trecho / descricao</th>
+                    <th>Localizador</th>
+                    <th>Tipo</th>
+                    <th class="pts-r">Pontos</th>
+                    <th class="pts-r">Taxas</th>
+                    <th class="pts-r">Acoes</th>
+                  </tr>
+                </thead>
+                <tbody id="ptsRows"></tbody>
+              </table>
+            </div>
+            <div class="table-foot" style="padding:12px 16px" id="ptsFoot">-</div>
           </section>
         </div>
       </section>
@@ -2017,6 +2113,61 @@ AMAURI BARROSO DE MOURA"></textarea>
     </div>
   </div>
 
+  <div class="modal" id="pontosModal" role="dialog" aria-modal="true" aria-labelledby="pontosModalTitle">
+    <div class="dialog wide">
+      <div class="chead"><span class="ti2" id="pontosModalTitle">Registrar movimentacao de pontos</span><button class="rowact" type="button" id="closePontosModal" aria-label="Fechar" data-icon="close"></button></div>
+      <form id="pontosForm" class="formgrid">
+        <label>Tipo
+          <select name="tipo" required>
+            <option value="uso">Emissao com pontos (uso)</option>
+            <option value="entrada">Entrada de pontos (compra, cartao, bonus)</option>
+            <option value="transferencia">Transferencia entre programas</option>
+            <option value="expiracao">Pontos expirados</option>
+            <option value="ajuste">Ajuste de saldo (informar saldo real)</option>
+          </select>
+        </label>
+        <label>Data<input name="data" type="date" required></label>
+        <label><span data-pts-lbl-prog>Programa</span>
+          <select name="programa" required></select>
+        </label>
+        <label data-pts-show="uso entrada transferencia expiracao"><span data-pts-lbl-pontos>Pontos usados</span><input name="pontos" inputmode="numeric" placeholder="Ex.: 17.500"></label>
+        <label data-pts-show="ajuste">Saldo real hoje no programa<input name="saldoReal" inputmode="numeric" placeholder="Ex.: 248.500"></label>
+
+        <label data-pts-show="uso">Localizador<input name="localizador" placeholder="Ex.: XKJ8LP" style="text-transform:uppercase"></label>
+        <div class="pts-hint" id="ptsLinkHint"></div>
+        <label data-pts-show="uso">Passageiro<input name="passageiro" list="ptsPaxOptions" placeholder="Nome do colaborador"></label>
+        <label data-pts-show="uso">Centro de custo<input name="centroCusto" list="ptsCcOptions" placeholder="Ex.: Obra 214 / ADM"></label>
+        <label data-pts-show="uso">Trecho<input name="trecho" placeholder="Ex.: GRU - LDB"></label>
+        <label data-pts-show="uso">Taxas pagas (R$)<input name="taxas" placeholder="Ex.: 56,40"></label>
+
+        <label data-pts-show="entrada">Origem da entrada
+          <select name="origemEntrada">
+            <option>Compra de pontos</option>
+            <option>Cartao de credito</option>
+            <option>Bonus / promocao</option>
+            <option>Acumulo em voo</option>
+            <option>Outro</option>
+          </select>
+        </label>
+        <label data-pts-show="entrada">Custo pago (R$)<input name="custo" placeholder="Opcional - Ex.: 1.200,00"></label>
+        <label data-pts-show="entrada">Validade dos pontos<input name="validade" type="date"></label>
+
+        <label data-pts-show="transferencia">Programa de destino<select name="programaDestino"></select></label>
+        <label data-pts-show="transferencia">Bonus da transferencia (%)<input name="bonus" inputmode="decimal" placeholder="Ex.: 30"></label>
+        <label data-pts-show="transferencia">Pontos recebidos no destino<input name="pontosRecebidos" inputmode="numeric" placeholder="Calculado pelo bonus"></label>
+
+        <label style="grid-column:1 / -1">Observacao<input name="observacao" placeholder="Opcional"></label>
+        <div class="helper" id="ptsFormError" style="grid-column:1 / -1;color:#d84b4b;display:none"></div>
+        <footer style="grid-column:1 / -1">
+          <button class="ghost" type="button" id="cancelPontosModal">Cancelar</button>
+          <button class="primary" type="submit"><span data-icon="save"></span>Salvar</button>
+        </footer>
+      </form>
+      <datalist id="ptsPaxOptions"></datalist>
+      <datalist id="ptsCcOptions"></datalist>
+    </div>
+  </div>
+
   <script>
     const ICONS = {
       bell:'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
@@ -2058,7 +2209,8 @@ AMAURI BARROSO DE MOURA"></textarea>
       bed:'M3 11V6a2 2 0 0 1 2-2h3a3 3 0 0 1 3 3v4M3 11h18v6M3 17v3M21 17v3M11 11h7a3 3 0 0 1 3 3',
       car:'M5 16h14l-1-5a2 2 0 0 0-2-1H8a2 2 0 0 0-2 1zm0 0-1 3m15-3 1 3M7 19h.01M17 19h.01M3 10h2M19 10h2',
       checkSquare:'M9 11l2 2 4-4M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2',
-      printer:'M6 9V3h12v6M6 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1M7 14h10v7H7z'
+      printer:'M6 9V3h12v6M6 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1M7 14h10v7H7z',
+      star:'M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z'
     };
 
     function icon(name, size = 18) {
@@ -6791,6 +6943,11 @@ AMAURI BARROSO DE MOURA"></textarea>
       const currentYear = currentPassagensYear();
       const activeView = passagensCurrentView || 'overview';
 
+      if (activeView === 'pontos') {
+        renderPontos();
+        return;
+      }
+
       if (activeView === 'overview') {
         const { todayRows } = passagensOverviewData(allRows, currentMonth);
         document.getElementById('pCountLabel').textContent = `${todayRows.length} compras de hoje`;
@@ -7024,7 +7181,511 @@ AMAURI BARROSO DE MOURA"></textarea>
       if (activeView === 'creditos') {
         renderPassagensCreditos();
       }
+
+      if (activeView === 'pontos') {
+        renderPontos();
+      }
     }
+
+    // ===================== Controle de Pontos =====================
+    const PONTOS_CACHE_KEY = 'portal-mse-pontos-v1';
+    const PONTOS_PROGRAMAS = [
+      { key: 'livelo', nome: 'Livelo', sub: 'Banco de pontos', cor: '#e6007e' },
+      { key: 'gol', nome: 'Gol', sub: 'Smiles', cor: '#ff6b00' },
+      { key: 'latam', nome: 'Latam', sub: 'LATAM Pass', cor: '#c8102e' },
+      { key: 'azul', nome: 'Azul', sub: 'Azul Fidelidade', cor: '#1a4fd6' }
+    ];
+    const PONTOS_TIPOS = {
+      uso: { label: 'Uso', cls: 'neutral' },
+      entrada: { label: 'Entrada', cls: 'ok' },
+      transferencia: { label: 'Transferencia', cls: 'warn' },
+      expiracao: { label: 'Expirado', cls: 'warn' },
+      ajuste: { label: 'Ajuste', cls: 'neutral' }
+    };
+    let pontosMovs = [];
+    let pontosLoaded = false;
+    let pontosLoading = false;
+    let pontosFiltroPrograma = 'todos';
+    let pontosEditingId = null;
+
+    function pontosProg(key) {
+      return PONTOS_PROGRAMAS.find(p => p.key === key) || { key, nome: key || '-', sub: '', cor: '#64748b' };
+    }
+
+    function pontosFmt(value) {
+      return Math.round(Number(value) || 0).toLocaleString('pt-BR');
+    }
+
+    function pontosParseInt(value) {
+      if (value == null || value === '') return null;
+      if (typeof value === 'number') return Math.round(value);
+      const digits = String(value).replace(/[^\d-]/g, '');
+      if (!digits || digits === '-') return null;
+      const parsed = Number(digits);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function pontosSaveLocal() {
+      try {
+        window.localStorage.setItem(PONTOS_CACHE_KEY, JSON.stringify(pontosMovs));
+      } catch (error) {
+        console.warn('Nao foi possivel salvar pontos no cache local.', error);
+      }
+    }
+
+    function pontosLoadLocal() {
+      try {
+        const raw = window.localStorage.getItem(PONTOS_CACHE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    async function pontosLoad() {
+      if (pontosLoaded || pontosLoading) return;
+      pontosLoading = true;
+      const local = pontosLoadLocal();
+      let merged = local;
+      if (REMOTE_ENABLED) {
+        try {
+          const rows = await apiRequest('passagens_pontos', { query: 'select=*&order=updated_at.asc' });
+          const remote = (rows || []).map(row => row.data).filter(item => item && item.id);
+          const byId = new Map();
+          remote.forEach(item => byId.set(String(item.id), item));
+          // registros que ficaram so no navegador (ex.: banco fora do ar) sobem agora
+          const pendentes = local.filter(item => item && item.id && !byId.has(String(item.id)));
+          pendentes.forEach(item => byId.set(String(item.id), item));
+          merged = Array.from(byId.values());
+          if (pendentes.length) {
+            apiRequest('passagens_pontos', {
+              method: 'POST',
+              prefer: 'resolution=merge-duplicates',
+              body: pendentes.map(item => ({ id: String(item.id), data: item }))
+            }).catch(error => console.error(error));
+          }
+        } catch (error) {
+          console.error('Pontos: banco indisponivel, usando cache local.', error);
+        }
+      }
+      pontosMovs = merged;
+      pontosSaveLocal();
+      pontosLoaded = true;
+      pontosLoading = false;
+      renderPontos();
+    }
+
+    async function pontosUpsertRemote(item) {
+      if (!REMOTE_ENABLED) return;
+      await apiRequest('passagens_pontos', {
+        method: 'POST',
+        prefer: 'resolution=merge-duplicates',
+        body: [{ id: String(item.id), data: item }]
+      });
+    }
+
+    async function pontosDeleteRemote(id) {
+      if (!REMOTE_ENABLED) return;
+      await apiRequest('passagens_pontos', { method: 'DELETE', query: `id=eq.${encodeURIComponent(String(id))}` });
+    }
+
+    // Efeito de uma movimentacao no saldo de um programa
+    function pontosEfeito(mov, programa) {
+      const pts = Number(mov.pontos) || 0;
+      let total = 0;
+      if (mov.tipo === 'uso' || mov.tipo === 'expiracao') {
+        if (mov.programa === programa) total -= pts;
+      } else if (mov.tipo === 'entrada') {
+        if (mov.programa === programa) total += pts;
+      } else if (mov.tipo === 'ajuste') {
+        if (mov.programa === programa) total += pts; // ajuste guarda a diferenca (pode ser negativa)
+      } else if (mov.tipo === 'transferencia') {
+        if (mov.programa === programa) total -= pts;
+        if (mov.programaDestino === programa) total += Number(mov.pontosRecebidos) || 0;
+      }
+      return total;
+    }
+
+    function pontosSaldo(programa, ignoreId = null) {
+      return pontosMovs.reduce((sum, mov) => (ignoreId && String(mov.id) === String(ignoreId) ? sum : sum + pontosEfeito(mov, programa)), 0);
+    }
+
+    function pontosSortDesc(a, b) {
+      const da = `${a.data || ''}|${a.createdAt || ''}`;
+      const db = `${b.data || ''}|${b.createdAt || ''}`;
+      return db.localeCompare(da);
+    }
+
+    function pontosMesRows(month) {
+      return pontosMovs.filter(mov => String(mov.data || '').slice(0, 7) === month);
+    }
+
+    function renderPontos() {
+      if (!document.getElementById('pview-pontos')) return;
+      if (!pontosLoaded) {
+        document.getElementById('ptsRows').innerHTML = `<tr><td colspan="10"><div class="empty-state"><b>Carregando pontos...</b></div></td></tr>`;
+        pontosLoad();
+        return;
+      }
+      const month = currentPassagensMonth();
+      const today = todayKey();
+      const limite = new Date();
+      limite.setDate(limite.getDate() + 60);
+      const limiteKey = limite.toLocaleDateString('sv-SE');
+      const mesRows = pontosMesRows(month);
+      document.getElementById('ptsTitle').textContent = `Controle de Pontos | ${monthLabel(month)}`;
+
+      // ---- cards por programa
+      const saldos = {};
+      document.getElementById('ptsCards').innerHTML = PONTOS_PROGRAMAS.map(prog => {
+        const saldo = pontosSaldo(prog.key);
+        saldos[prog.key] = saldo;
+        const usadoMes = mesRows.filter(m => m.programa === prog.key && m.tipo === 'uso').reduce((s, m) => s + (Number(m.pontos) || 0), 0);
+        const entradasCusto = pontosMovs.filter(m => m.programa === prog.key && m.tipo === 'entrada' && Number(m.custo) > 0 && Number(m.pontos) > 0);
+        const custoTotal = entradasCusto.reduce((s, m) => s + Number(m.custo), 0);
+        const ptsCusto = entradasCusto.reduce((s, m) => s + Number(m.pontos), 0);
+        const milheiro = ptsCusto ? (custoTotal / ptsCusto) * 1000 : null;
+        const vencendo = pontosMovs
+          .filter(m => m.programa === prog.key && m.tipo === 'entrada' && m.validade && m.validade >= today && m.validade <= limiteKey)
+          .sort((a, b) => a.validade.localeCompare(b.validade));
+        const vencPts = vencendo.reduce((s, m) => s + (Number(m.pontos) || 0), 0);
+        const expText = vencendo.length
+          ? `&#9888; ${pontosFmt(vencPts)} pts com validade ate ${formatDate(vencendo[vencendo.length - 1].validade)}`
+          : 'Sem pontos a vencer em 60 dias';
+        return `
+          <div class="kpi pts-prog">
+            <div class="ktop"><div class="pts-dot" style="background:${prog.cor}1a;color:${prog.cor}">${prog.nome[0]}</div><div><div class="klabel">${prog.nome}</div><div class="pts-sub">${prog.sub}</div></div></div>
+            <div class="pts-label">Saldo atual</div>
+            <div class="pts-val ${saldo < 0 ? 'neg' : ''}">${pontosFmt(saldo)} <small>pts</small></div>
+            <div class="pts-row"><span>Usado no mes</span><b>${pontosFmt(usadoMes)}</b></div>
+            <div class="pts-row"><span>Custo medio do milheiro</span><b>${milheiro != null ? brl(milheiro) : '-'}</b></div>
+            <div class="pts-exp ${vencendo.length ? 'w' : ''}">${expText}</div>
+          </div>`;
+      }).join('');
+
+      // ---- usos do mes por centro de custo e passageiro
+      const usosMes = mesRows.filter(m => m.tipo === 'uso');
+      const totalUsoMes = usosMes.reduce((s, m) => s + (Number(m.pontos) || 0), 0);
+      const byCc = {};
+      const byPax = {};
+      usosMes.forEach(m => {
+        const cc = (m.centroCusto || '').trim() || 'Sem centro de custo';
+        byCc[cc] = (byCc[cc] || 0) + (Number(m.pontos) || 0);
+        const pax = (m.passageiro || '').trim() || 'Sem passageiro';
+        if (!byPax[pax]) byPax[pax] = { pontos: 0, qtd: 0, taxas: 0 };
+        byPax[pax].pontos += Number(m.pontos) || 0;
+        byPax[pax].qtd += 1;
+        byPax[pax].taxas += Number(m.taxas) || 0;
+      });
+      document.getElementById('ptsCcLabel').textContent = `${pontosFmt(totalUsoMes)} pts no mes`;
+      const ccEntries = Object.entries(byCc).sort((a, b) => b[1] - a[1]);
+      const ccMax = ccEntries.length ? ccEntries[0][1] : 0;
+      document.getElementById('ptsCcBars').innerHTML = ccEntries.length ? ccEntries.map(([cc, pts]) => `
+        <div class="baritem">
+          <div class="barlabel"><span>${escapeHtml(cc)}</span><b>${pontosFmt(pts)} pts</b></div>
+          <div class="track"><div class="fill" style="width:${ccMax ? (pts / ccMax) * 100 : 0}%"></div></div>
+        </div>`).join('') : `<div class="empty-state"><b>Nenhum ponto usado no mes.</b>Registre uma emissao com pontos para ver o consumo por centro de custo.</div>`;
+
+      const paxEntries = Object.entries(byPax).sort((a, b) => b[1].pontos - a[1].pontos).slice(0, 8);
+      document.getElementById('ptsPaxList').innerHTML = paxEntries.length ? paxEntries.map(([pax, info]) => {
+        const parts = pax.split(/\s+/).filter(Boolean);
+        const ini = ((parts[0] || '')[0] || '') + ((parts.length > 1 ? parts[parts.length - 1][0] : '') || '');
+        return `
+          <div class="pts-px">
+            <div class="pts-av">${escapeHtml(ini.toUpperCase() || '?')}</div>
+            <div><b>${escapeHtml(pax)}</b><small>${info.qtd} emissao(oes) | taxas ${brl(info.taxas)}</small></div>
+            <span class="v">${pontosFmt(info.pontos)} pts</span>
+          </div>`;
+      }).join('') : `<div class="empty-state"><b>Sem emissoes no mes.</b>Os passageiros que usaram pontos aparecem aqui.</div>`;
+
+      // ---- distribuicao do saldo
+      const positivos = PONTOS_PROGRAMAS.map(p => ({ ...p, saldo: Math.max(saldos[p.key] || 0, 0) }));
+      const totalSaldo = positivos.reduce((s, p) => s + p.saldo, 0);
+      document.getElementById('ptsTotalLabel').textContent = `${pontosFmt(totalSaldo)} pts`;
+      const totalVenc = pontosMovs
+        .filter(m => m.tipo === 'entrada' && m.validade && m.validade >= today && m.validade <= limiteKey)
+        .reduce((s, m) => s + (Number(m.pontos) || 0), 0);
+      document.getElementById('ptsStack').innerHTML = `
+        <div class="pts-stack">${totalSaldo ? positivos.map(p => `<div style="width:${(p.saldo / totalSaldo) * 100}%;background:${p.cor}"></div>`).join('') : ''}</div>
+        <div class="pts-leg">${positivos.map(p => `<div><span><i style="background:${p.cor}"></i>${p.nome} | ${p.sub}</span><b>${totalSaldo ? Math.round((p.saldo / totalSaldo) * 100) : 0}%</b></div>`).join('')}</div>
+        <div class="pts-exp ${totalVenc ? 'w' : ''}" style="margin-top:16px">${totalVenc ? `&#9888; ${pontosFmt(totalVenc)} pts com validade nos proximos 60 dias` : 'Nenhum ponto com validade nos proximos 60 dias'}</div>`;
+
+      // ---- chips de filtro
+      document.getElementById('ptsChips').innerHTML = [{ key: 'todos', nome: 'Todos' }, ...PONTOS_PROGRAMAS]
+        .map(p => `<button type="button" class="pts-chip ${pontosFiltroPrograma === p.key ? 'on' : ''}" onclick="pontosSetFiltro('${p.key}')">${p.nome}</button>`).join('');
+
+      // ---- tabela do mes
+      const query = norm(document.getElementById('pq').value);
+      const tableRows = mesRows
+        .filter(m => pontosFiltroPrograma === 'todos' || m.programa === pontosFiltroPrograma || m.programaDestino === pontosFiltroPrograma)
+        .filter(m => !query || norm([m.passageiro, m.centroCusto, m.localizador, m.trecho, m.observacao, pontosProg(m.programa).nome, m.origemEntrada].join(' ')).includes(query))
+        .sort(pontosSortDesc);
+      document.getElementById('ptsRows').innerHTML = tableRows.length ? tableRows.map(m => {
+        const prog = pontosProg(m.programa);
+        const tipo = PONTOS_TIPOS[m.tipo] || { label: m.tipo, cls: 'neutral' };
+        let delta = pontosEfeito(m, m.programa);
+        let descricao = m.trecho || '';
+        let progHtml = `<span class="pts-tag" style="background:${prog.cor}14;color:${prog.cor}">${prog.nome}</span>`;
+        if (m.tipo === 'transferencia') {
+          const dest = pontosProg(m.programaDestino);
+          progHtml += ` <span style="color:var(--mut)">&rarr;</span> <span class="pts-tag" style="background:${dest.cor}14;color:${dest.cor}">${dest.nome}</span>`;
+          descricao = `Saiu ${pontosFmt(m.pontos)} | entrou ${pontosFmt(m.pontosRecebidos)}${m.bonus ? ` (bonus ${String(m.bonus).replace('.', ',')}%)` : ''}`;
+          delta = -(Number(m.pontos) || 0);
+        } else if (m.tipo === 'entrada') {
+          descricao = [m.origemEntrada, Number(m.custo) > 0 ? `custo ${brl(Number(m.custo))}` : '', m.validade ? `validade ${formatDate(m.validade)}` : ''].filter(Boolean).join(' | ');
+        } else if (m.tipo === 'ajuste') {
+          descricao = `Saldo ajustado para ${pontosFmt(m.saldoReal)}`;
+        } else if (m.tipo === 'expiracao') {
+          descricao = 'Pontos expirados';
+        }
+        if (m.observacao) descricao += descricao ? ` | ${m.observacao}` : m.observacao;
+        const sinal = delta > 0 ? '+' : delta < 0 ? '-' : '';
+        return `
+          <tr>
+            <td>${formatDate(m.data)}</td>
+            <td>${progHtml}</td>
+            <td><b style="color:var(--ink)">${escapeHtml(m.passageiro || '-')}</b></td>
+            <td>${escapeHtml(m.centroCusto || '-')}</td>
+            <td>${escapeHtml(descricao || '-')}</td>
+            <td style="font-family:'IBM Plex Mono',monospace;font-size:12px">${escapeHtml(m.localizador || '-')}</td>
+            <td><span class="tag ${tipo.cls}">${tipo.label}</span></td>
+            <td class="pts-num ${delta > 0 ? 'pos' : ''}">${sinal}${pontosFmt(Math.abs(delta))}</td>
+            <td class="pts-num">${Number(m.taxas) > 0 ? brl(Number(m.taxas)) : '-'}</td>
+            <td><div class="pts-acts">
+              <button class="rowact" type="button" title="Editar" onclick="pontosEdit('${escapeHtml(String(m.id))}')">${icon('edit', 15)}</button>
+              <button class="rowact" type="button" title="Excluir" onclick="pontosDelete('${escapeHtml(String(m.id))}')">${icon('trash', 15)}</button>
+            </div></td>
+          </tr>`;
+      }).join('') : `<tr><td colspan="10"><div class="empty-state"><b>Nenhuma movimentacao neste mes.</b>Comece usando "Ajustar saldo" para informar o saldo atual de cada programa.</div></td></tr>`;
+      const usadosTabela = tableRows.filter(m => m.tipo === 'uso').reduce((s, m) => s + (Number(m.pontos) || 0), 0);
+      const taxasTabela = tableRows.reduce((s, m) => s + (Number(m.taxas) || 0), 0);
+      document.getElementById('ptsFoot').textContent = `Movimentacoes do mes: ${tableRows.length} | Pontos usados: ${pontosFmt(usadosTabela)} | Taxas pagas: ${brl(taxasTabela)}`;
+    }
+
+    function pontosSetFiltro(key) {
+      pontosFiltroPrograma = key;
+      renderPontos();
+    }
+    window.pontosSetFiltro = pontosSetFiltro;
+
+    // ---- formulario
+    function pontosFillSelects() {
+      const form = document.getElementById('pontosForm');
+      const options = PONTOS_PROGRAMAS.map(p => `<option value="${p.key}">${p.nome} | ${p.sub}</option>`).join('');
+      form.elements.programa.innerHTML = options;
+      form.elements.programaDestino.innerHTML = options;
+      const rows = typeof allPassagensData === 'function' ? allPassagensData() : [];
+      const pax = new Set();
+      const ccs = new Set();
+      rows.forEach(row => {
+        const nome = row.nome_colab || row.nome || '';
+        if (nome) pax.add(String(nome).trim());
+        if (row.centroCusto) ccs.add(String(row.centroCusto).trim());
+        if (row.nome_obra) ccs.add(String(row.nome_obra).trim());
+      });
+      pontosMovs.forEach(m => {
+        if (m.passageiro) pax.add(m.passageiro);
+        if (m.centroCusto) ccs.add(m.centroCusto);
+      });
+      document.getElementById('ptsPaxOptions').innerHTML = Array.from(pax).sort().map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
+      document.getElementById('ptsCcOptions').innerHTML = Array.from(ccs).sort().map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
+    }
+
+    function pontosToggleFields() {
+      const form = document.getElementById('pontosForm');
+      const tipo = form.elements.tipo.value;
+      form.querySelectorAll('[data-pts-show]').forEach(el => {
+        el.style.display = el.dataset.ptsShow.split(' ').includes(tipo) ? '' : 'none';
+      });
+      document.getElementById('ptsLinkHint').style.display = tipo === 'uso' && document.getElementById('ptsLinkHint').textContent ? 'block' : 'none';
+      const lblPontos = {
+        uso: 'Pontos usados',
+        entrada: 'Pontos recebidos',
+        transferencia: 'Pontos enviados (saem da origem)',
+        expiracao: 'Pontos expirados'
+      };
+      form.querySelector('[data-pts-lbl-pontos]').textContent = lblPontos[tipo] || 'Pontos';
+      form.querySelector('[data-pts-lbl-prog]').textContent = tipo === 'transferencia' ? 'Programa de origem' : 'Programa';
+      if (tipo === 'ajuste') {
+        const saldo = pontosSaldo(form.elements.programa.value, pontosEditingId);
+        form.elements.saldoReal.placeholder = `Saldo calculado hoje: ${pontosFmt(saldo)}`;
+      }
+    }
+
+    function pontosCalcRecebidos() {
+      const form = document.getElementById('pontosForm');
+      const pts = pontosParseInt(form.elements.pontos.value);
+      const bonus = parseMoney(form.elements.bonus.value) || 0;
+      if (pts != null) form.elements.pontosRecebidos.value = pontosFmt(pts * (1 + bonus / 100));
+    }
+
+    function pontosVincularLocalizador() {
+      const form = document.getElementById('pontosForm');
+      const hint = document.getElementById('ptsLinkHint');
+      const loc = String(form.elements.localizador.value || '').trim().toUpperCase();
+      hint.textContent = '';
+      hint.style.display = 'none';
+      if (loc.length < 5 || typeof allPassagensData !== 'function') return;
+      const row = allPassagensData().find(item => String(item.localizador || '').trim().toUpperCase() === loc);
+      if (!row) return;
+      const nome = row.nome_colab || row.nome || '';
+      if (nome && !form.elements.passageiro.value) form.elements.passageiro.value = nome;
+      const cc = row.centroCusto || row.nome_obra || '';
+      if (cc && !form.elements.centroCusto.value) form.elements.centroCusto.value = cc;
+      const trecho = [row.origem, row.destino].filter(Boolean).join(' - ');
+      if (trecho && !form.elements.trecho.value) form.elements.trecho.value = trecho;
+      const cia = norm(row.companhia || '');
+      const prog = cia.includes('latam') || cia.includes('tam') ? 'latam' : cia.includes('gol') || cia.includes('smiles') ? 'gol' : cia.includes('azul') ? 'azul' : '';
+      if (prog && !pontosEditingId) form.elements.programa.value = prog;
+      hint.textContent = `Passagem encontrada: ${nome || 'colaborador'}${trecho ? ` | ${trecho}` : ''}. Dados preenchidos automaticamente.`;
+      hint.style.display = 'block';
+    }
+
+    function pontosOpenModal(tipo, mov = null) {
+      const form = document.getElementById('pontosForm');
+      form.reset();
+      pontosFillSelects();
+      pontosEditingId = mov ? mov.id : null;
+      document.getElementById('ptsFormError').style.display = 'none';
+      document.getElementById('ptsLinkHint').textContent = '';
+      form.elements.tipo.value = mov ? mov.tipo : tipo;
+      form.elements.data.value = mov ? (mov.data || todayKey()) : todayKey();
+      if (mov) {
+        form.elements.programa.value = mov.programa || 'livelo';
+        form.elements.pontos.value = mov.tipo === 'ajuste' ? '' : pontosFmt(mov.pontos);
+        form.elements.saldoReal.value = mov.saldoReal != null ? pontosFmt(mov.saldoReal) : '';
+        form.elements.localizador.value = mov.localizador || '';
+        form.elements.passageiro.value = mov.passageiro || '';
+        form.elements.centroCusto.value = mov.centroCusto || '';
+        form.elements.trecho.value = mov.trecho || '';
+        form.elements.taxas.value = Number(mov.taxas) > 0 ? String(mov.taxas).replace('.', ',') : '';
+        form.elements.origemEntrada.value = mov.origemEntrada || 'Compra de pontos';
+        form.elements.custo.value = Number(mov.custo) > 0 ? String(mov.custo).replace('.', ',') : '';
+        form.elements.validade.value = mov.validade || '';
+        form.elements.programaDestino.value = mov.programaDestino || 'latam';
+        form.elements.bonus.value = mov.bonus != null && mov.bonus !== '' ? String(mov.bonus).replace('.', ',') : '';
+        form.elements.pontosRecebidos.value = mov.pontosRecebidos != null ? pontosFmt(mov.pontosRecebidos) : '';
+        form.elements.observacao.value = mov.observacao || '';
+      } else if (tipo === 'uso') {
+        form.elements.programa.value = 'latam';
+      } else if (tipo === 'transferencia' || tipo === 'entrada') {
+        form.elements.programa.value = 'livelo';
+        form.elements.programaDestino.value = 'latam';
+      }
+      const titulos = { uso: 'Registrar emissao com pontos', entrada: 'Entrada / transferencia de pontos', transferencia: 'Entrada / transferencia de pontos', ajuste: 'Ajustar saldo do programa' };
+      document.getElementById('pontosModalTitle').textContent = mov ? 'Editar movimentacao de pontos' : (titulos[tipo] || 'Registrar movimentacao de pontos');
+      pontosToggleFields();
+      openModalById('pontosModal');
+    }
+
+    function pontosEdit(id) {
+      const mov = pontosMovs.find(m => String(m.id) === String(id));
+      if (mov) pontosOpenModal(mov.tipo, mov);
+    }
+    window.pontosEdit = pontosEdit;
+
+    async function pontosDelete(id) {
+      const index = pontosMovs.findIndex(m => String(m.id) === String(id));
+      if (index < 0) return;
+      const mov = pontosMovs[index];
+      const desc = `${(PONTOS_TIPOS[mov.tipo] || {}).label || mov.tipo} de ${pontosFmt(mov.pontos)} pts em ${pontosProg(mov.programa).nome}`;
+      if (!window.confirm(`Excluir esta movimentacao?\n${desc}`)) return;
+      pontosMovs.splice(index, 1);
+      pontosSaveLocal();
+      renderPontos();
+      try {
+        await pontosDeleteRemote(id);
+      } catch (error) {
+        console.error(error);
+        window.alert('A movimentacao foi removida neste navegador, mas nao consegui apagar no banco. Tente novamente mais tarde.');
+      }
+    }
+    window.pontosDelete = pontosDelete;
+
+    function pontosShowError(message) {
+      const el = document.getElementById('ptsFormError');
+      el.textContent = message;
+      el.style.display = 'block';
+    }
+
+    document.getElementById('pontosForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const f = form.elements;
+      const tipo = f.tipo.value;
+      const anterior = pontosEditingId ? pontosMovs.find(m => String(m.id) === String(pontosEditingId)) : null;
+      const mov = {
+        id: pontosEditingId || `pts-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        tipo,
+        data: f.data.value || todayKey(),
+        programa: f.programa.value,
+        observacao: f.observacao.value.trim(),
+        createdAt: anterior ? anterior.createdAt : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      if (tipo === 'ajuste') {
+        const saldoReal = pontosParseInt(f.saldoReal.value);
+        if (saldoReal == null) return pontosShowError('Informe o saldo real do programa.');
+        mov.saldoReal = saldoReal;
+        mov.pontos = saldoReal - pontosSaldo(mov.programa, pontosEditingId);
+      } else {
+        const pontos = pontosParseInt(f.pontos.value);
+        if (!pontos || pontos <= 0) return pontosShowError('Informe a quantidade de pontos (maior que zero).');
+        mov.pontos = pontos;
+      }
+      if (tipo === 'uso') {
+        mov.localizador = f.localizador.value.trim().toUpperCase();
+        mov.passageiro = f.passageiro.value.trim();
+        mov.centroCusto = f.centroCusto.value.trim();
+        mov.trecho = f.trecho.value.trim();
+        mov.taxas = parseMoney(f.taxas.value) || 0;
+        if (!mov.passageiro) return pontosShowError('Informe o passageiro.');
+        if (!mov.centroCusto) return pontosShowError('Informe o centro de custo.');
+      }
+      if (tipo === 'entrada') {
+        mov.origemEntrada = f.origemEntrada.value;
+        mov.custo = parseMoney(f.custo.value) || 0;
+        mov.validade = f.validade.value || '';
+      }
+      if (tipo === 'transferencia') {
+        mov.programaDestino = f.programaDestino.value;
+        if (mov.programaDestino === mov.programa) return pontosShowError('Origem e destino precisam ser programas diferentes.');
+        mov.bonus = parseMoney(f.bonus.value) || 0;
+        const recebidos = pontosParseInt(f.pontosRecebidos.value);
+        mov.pontosRecebidos = recebidos != null ? recebidos : Math.round(mov.pontos * (1 + mov.bonus / 100));
+      }
+      const idx = pontosMovs.findIndex(m => String(m.id) === String(mov.id));
+      if (idx >= 0) pontosMovs[idx] = mov;
+      else pontosMovs.push(mov);
+      pontosSaveLocal();
+      pontosEditingId = null;
+      closeModalById('pontosModal');
+      const movMonth = String(mov.data).slice(0, 7);
+      if (movMonth && movMonth !== currentPassagensMonth()) pMonthPicker.value = movMonth;
+      renderPontos();
+      try {
+        await pontosUpsertRemote(mov);
+      } catch (error) {
+        console.error(error);
+        window.alert('Movimentacao salva neste navegador, mas nao consegui gravar no banco agora. Ela sera enviada quando o portal for aberto de novo.');
+      }
+    });
+
+    document.getElementById('pontosForm').elements.tipo.addEventListener('change', pontosToggleFields);
+    document.getElementById('pontosForm').elements.programa.addEventListener('change', pontosToggleFields);
+    document.getElementById('pontosForm').elements.pontos.addEventListener('input', () => {
+      if (document.getElementById('pontosForm').elements.tipo.value === 'transferencia') pontosCalcRecebidos();
+    });
+    document.getElementById('pontosForm').elements.bonus.addEventListener('input', pontosCalcRecebidos);
+    document.getElementById('pontosForm').elements.localizador.addEventListener('change', pontosVincularLocalizador);
+    document.getElementById('pontosForm').elements.localizador.addEventListener('blur', pontosVincularLocalizador);
+    document.getElementById('ptsBtnUso').addEventListener('click', () => pontosOpenModal('uso'));
+    document.getElementById('ptsBtnEntrada').addEventListener('click', () => pontosOpenModal('entrada'));
+    document.getElementById('ptsBtnAjuste').addEventListener('click', () => pontosOpenModal('ajuste'));
+    document.getElementById('closePontosModal').addEventListener('click', () => { pontosEditingId = null; closeModalById('pontosModal'); });
+    document.getElementById('cancelPontosModal').addEventListener('click', () => { pontosEditingId = null; closeModalById('pontosModal'); });
+    // ===================== fim Controle de Pontos =====================
 
     async function syncPassagensData() {
       if (!passagensApiBaseUrl) {
