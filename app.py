@@ -641,6 +641,14 @@ def add_cors_headers(response: Response) -> Response:
     return response
 
 
+# --------------------------------------------------------------------------- #
+# Aba "Cotacao": busca de voos (SerpApi / Google Flights) + solicitacoes. Rotas em /cotacao.
+# --------------------------------------------------------------------------- #
+from cotacao import init_cotacao  # noqa: E402
+
+init_cotacao(app, get_db)
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     debug = os.getenv("FLASK_DEBUG", "0") == "1"

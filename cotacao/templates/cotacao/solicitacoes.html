@@ -1,0 +1,187 @@
+{% extends "cotacao/base.html" %}
+{% block titulo_aba %}Solicitações realizadas · Portal Passagens{% endblock %}
+{% block titulo %}Solicitações realizadas{% endblock %}
+{% block subtitulo %}Cada pedido com o voo escolhido, o menor preço disponível e a justificativa.{% endblock %}
+{% block icone %}<path d="M8 2h8v4H8zM16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 12h6M9 16h4"/>{% endblock %}
+{% block lab %}Painel de solicitações{% endblock %}
+{% block botoes %}
+  <a class="btn btn-blue" href="{{ url_for('cotacao.index', **q) }}"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova solicitação</a>
+{% endblock %}
+
+{% macro oferta(o) -%}
+  {{ o.segmentos | map(attribute='cia') | unique | join(' / ') }} {{ o.segmentos | map(attribute='numero') | join(' + ') }}
+  · {{ o.origem_id }} {{ o.partida | cot_dh }} → {{ o.destino_id }} {{ o.chegada | cot_dh }}
+  · {{ o.duracao_min | cot_dur }} · {{ 'direto' if o.escalas == 0 else (o.escalas ~ ' escala(s)') }}{% if o.tarifa %} · tarifa {{ o.tarifa }}{% endif %}
+{%- endmacro %}
+
+{% macro tabela(lista, escolhido_id, titulo) -%}
+  <details>
+    <summary>{{ titulo }} ({{ lista | length }} opções que a pessoa viu)</summary>
+    <table class="opts">
+      <tr><th>Voo</th><th>Saída → chegada</th><th>Duração</th><th>Escalas</th><th>Preço na companhia</th></tr>
+      {% set menor = (lista | map(attribute='preco') | min) %}
+      {% for o in lista %}
+      <tr class="{{ 'chosen' if o.id == escolhido_id }} {{ 'cheapest' if o.preco == menor }}">
+        <td>{{ o.segmentos | map(attribute='cia') | unique | join(' / ') }} {{ o.segmentos | map(attribute='numero') | join(' + ') }}{% if o.tarifa %} <small>({{ o.tarifa }})</small>{% endif %}{% if o.id == escolhido_id %} ← escolhido{% endif %}</td>
+        <td>{{ o.origem_id }} {{ o.partida | cot_dh }} → {{ o.destino_id }} {{ o.chegada | cot_dh }}</td>
+        <td>{{ o.duracao_min | cot_dur }}</td>
+        <td>{{ o.escalas }}</td>
+        <td>{{ o.preco | cot_brl }}{% if o.preco == menor %} (menor){% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </details>
+{%- endmacro %}
+
+{% block conteudo %}
+<div class="kpis">
+  <div class="kpi"><span class="lbl">Solicitações</span><div class="kv">{{ resumo.total }}</div><div class="kd">no total</div></div>
+  <div class="kpi"><span class="lbl">Melhor preço</span><div class="kv green">{{ resumo.melhor }}</div><div class="kd">escolheram o menor</div></div>
+  <div class="kpi"><span class="lbl">Com justificativa</span><div class="kv amb">{{ resumo.justificadas }}</div><div class="kd">não escolheram o menor</div></div>
+  <div class="kpi"><span class="lbl">Novas</span><div class="kv blue">{{ resumo.novas }}</div><div class="kd">aguardando andamento</div></div>
+</div>
+
+<label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+  <input type="text" id="busca" placeholder="Buscar por nome, obra, cidade ou número da solicitação" aria-label="Buscar solicitações"></label>
+
+<div class="controls">
+  <div class="seg" id="filtros" role="group" aria-label="Filtro">
+    <button type="button" class="on" data-f="todas">Todas</button>
+    <button type="button" data-f="nm">Com justificativa</button>
+    <button type="button" data-f="nova">Novas</button>
+  </div>
+</div>
+
+<div id="lista">
+{% for it in itens %}
+{% set r = it.r %}{% set d = it.d %}
+<article class="sol {{ 'nm' if r.melhor_preco_ok == 0 }} {{ 'bus' if r.melhor_preco_ok is none }}" id="s{{ r.id }}"
+         data-nm="{{ 1 if r.melhor_preco_ok == 0 else 0 }}" data-status="{{ r.status }}"
+         data-q="{{ ('#' ~ r.id ~ ' ' ~ d.viajante.nome ~ ' ' ~ d.viajante.obra ~ ' ' ~ d.origem.cidade ~ ' ' ~ d.destino.cidade) | lower }}">
+  <header>
+    <div>
+      <h3>#{{ r.id }} · {{ d.viajante.nome }} <small>— {{ d.viajante.obra }}</small></h3>
+      <div class="sub">{{ d.origem.cidade }}/{{ d.origem.uf }} → {{ d.destino.cidade }}/{{ d.destino.uf }}
+        · {{ d.data_ida | cot_data }}{% if d.trecho == 'ida_volta' %} a {{ d.data_volta | cot_data }}{% endif %}
+        · enviada em {{ r.criado_em | cot_dh }}</div>
+    </div>
+    <div class="hr">
+      {% if r.melhor_preco_ok == 1 %}<span class="tag ok"><span class="d"></span>Melhor preço escolhido</span>
+      {% elif r.melhor_preco_ok == 0 %}<span class="tag warn"><span class="d"></span>Não é o melhor preço · justificado</span>
+      {% else %}<span class="tag neutral"><span class="d"></span>Ônibus · sem cotação</span>{% endif %}
+      {% if it.modo == 'exemplo' %}<span class="tag warn">Dados de exemplo</span>{% endif %}
+      <form class="statusform" method="post" action="{{ url_for('cotacao.solicitacao_status', sid=r.id) }}">
+        {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+        <select name="status" onchange="this.form.submit()" aria-label="Status da solicitação #{{ r.id }}">
+          {% for s in status_lista %}<option {{ 'selected' if s == r.status }}>{{ s }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+  </header>
+
+  <div class="body">
+    <div>
+      <div class="kvr"><span class="lbl">Tipo</span><span>{{ d.tipo_solicitacao }} · {{ 'Avião' if d.modal == 'aviao' else 'Ônibus' }}{% if d.internacional %} · internacional{% endif %}</span></div>
+      <div class="kvr"><span class="lbl">Motivo</span><span>{{ d.motivo }} · {{ 'ida e volta' if d.trecho == 'ida_volta' else 'somente ida' }}</span></div>
+      <div class="kvr"><span class="lbl">Viajante</span><span>{{ d.viajante.nome }} · {{ d.viajante.funcao }}</span></div>
+      <div class="kvr"><span class="lbl">CPF / RG</span><span>{{ d.viajante.cpf }}{% if d.viajante.rg %} / {{ d.viajante.rg }}{% endif %} · nasc. {{ d.viajante.nascimento | cot_data }}</span></div>
+    </div>
+    <div>
+      {% if d.modal == 'aviao' %}
+      <div class="kvr"><span class="lbl">Bagagem despachada</span><span>{{ d.bagagem }}</span></div>
+      <div class="kvr"><span class="lbl">Trajeto de ônibus</span><span>{{ d.inclui_onibus }}</span></div>
+      {% else %}
+      <div class="kvr"><span class="lbl">Acomodação</span><span>{{ d.acomodacao_onibus }}</span></div>
+      {% endif %}
+      <div class="kvr"><span class="lbl">Hospedagem</span><span>{{ d.hospedagem }}</span></div>
+      <div class="kvr"><span class="lbl">Veículo</span><span>{{ d.veiculo }}</span></div>
+      {% if d.incluir_proximos %}<div class="kvr"><span class="lbl">Origens extras</span><span>cotação incluiu aeroportos próximos</span></div>{% endif %}
+      {% if d.observacoes %}<div class="kvr"><span class="lbl">Observações</span><span>{{ d.observacoes }}</span></div>{% endif %}
+      {% if r.documento %}<div class="kvr"><span class="lbl">Documento</span><span><a href="{{ url_for('cotacao.baixar_doc', nome=r.documento) }}" target="_blank" rel="noopener">abrir anexo</a></span></div>{% endif %}
+    </div>
+
+    {% if r.melhor_preco_ok is not none %}
+    <div class="pick">
+      <h4>Opção escolhida</h4>
+      {% if it.ofe_ida %}<div class="kvr"><span class="lbl">Ida</span><span>{{ oferta(it.ofe_ida) }} — <b>{{ it.ofe_ida.preco | cot_brl }}</b></span></div>{% endif %}
+      {% if it.ofe_volta %}<div class="kvr"><span class="lbl">Volta</span><span>{{ oferta(it.ofe_volta) }} — <b>{{ it.ofe_volta.preco | cot_brl }}</b></span></div>{% endif %}
+      <div class="kvr"><span class="lbl">Total escolhido</span><span><b>{{ r.preco_escolhido | cot_brl }}</b></span></div>
+      <div class="kvr"><span class="lbl">Menor total possível</span><span>{{ r.preco_melhor | cot_brl }}
+        {% if r.melhor_preco_ok == 1 %}<span class="st ok">igual ao escolhido</span>
+        {% else %}<span class="st warn">+ {{ it.dif | cot_brl }} acima do menor</span>{% endif %}</span></div>
+      {% if r.melhor_preco_ok == 0 %}
+        {% if it.melhor_ida and (not it.ofe_ida or it.melhor_ida.id != it.ofe_ida.id) %}<div class="kvr"><span class="lbl">Melhor ida</span><span>{{ oferta(it.melhor_ida) }} — {{ it.melhor_ida.preco | cot_brl }}</span></div>{% endif %}
+        {% if it.melhor_volta and (not it.ofe_volta or it.melhor_volta.id != it.ofe_volta.id) %}<div class="kvr"><span class="lbl">Melhor volta</span><span>{{ oferta(it.melhor_volta) }} — {{ it.melhor_volta.preco | cot_brl }}</span></div>{% endif %}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if r.justificativa %}
+    <div class="just"><span class="lbl">Justificativa da pessoa</span>{{ r.justificativa }}</div>
+    {% endif %}
+
+    {% if it.ida %}{{ tabela(it.ida, r.escolha_ida, 'Todos os voos de ida') }}{% endif %}
+    {% if it.volta and d.trecho == 'ida_volta' %}{{ tabela(it.volta, r.escolha_volta, 'Todos os voos de volta') }}{% endif %}
+  </div>
+</article>
+{% endfor %}
+</div>
+
+<div class="empty {{ 'hide' if itens }}" id="vazio">Nenhuma solicitação ainda. <a href="{{ url_for('cotacao.index', **q) }}">Fazer a primeira</a></div>
+<div class="empty hide" id="semResultado">Nenhuma solicitação encontrada com esse filtro.</div>
+
+<div class="pagination-bar {{ 'hide' if not itens }}" id="paginacao">
+  <div class="pagination-pages"><ul class="pagination-list" id="paginas"></ul></div>
+  <div class="pagination-counter"><ul class="pagination-list"><li class="active"><span><strong id="totalReg">0</strong> Registro(s) encontrado(s).</span></li></ul></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var POR_PAGINA = 8, filtro = 'todas', pagina = 1;
+  var cards = Array.prototype.slice.call(document.querySelectorAll('article.sol'));
+  var campo = document.getElementById('busca');
+  function visiveis() {
+    var q = campo.value.trim().toLowerCase();
+    return cards.filter(function (a) {
+      var okF = filtro === 'todas' || (filtro === 'nm' && a.dataset.nm === '1') || (filtro === 'nova' && a.dataset.status === 'Nova');
+      return okF && (!q || a.dataset.q.indexOf(q) !== -1);
+    });
+  }
+  var seta = function (d, off) {
+    return '<li class="' + (off ? 'disabled' : '') + '"><a ' + (off ? '' : 'href="#" data-p="' + d + '"') + ' aria-label="' + (d < 0 ? 'Anterior' : 'Próxima') + '"><svg viewBox="0 0 24 24"><path d="' + (d < 0 ? 'm15 6-6 6 6 6' : 'm9 6 6 6-6 6') + '"/></svg></a></li>';
+  };
+  function render() {
+    var v = visiveis(), total = v.length, paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+    if (pagina > paginas) pagina = paginas;
+    cards.forEach(function (a) { a.style.display = 'none'; });
+    v.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA).forEach(function (a) { a.style.display = ''; });
+    document.getElementById('totalReg').textContent = total;
+    var vazio = document.getElementById('semResultado');
+    if (cards.length) vazio.classList.toggle('hide', total > 0);
+    var html = seta(-1, pagina === 1) + '<li class="pagination-divider"><span></span></li>';
+    for (var i = 1; i <= paginas; i++) html += '<li class="' + (i === pagina ? 'active' : '') + '"><a href="#" data-pg="' + i + '">' + i + '</a></li>';
+    html += '<li class="pagination-divider"><span></span></li>' + seta(1, pagina === paginas);
+    document.getElementById('paginas').innerHTML = html;
+  }
+  document.getElementById('paginas').addEventListener('click', function (e) {
+    var a = e.target.closest('a'); if (!a) return; e.preventDefault();
+    if (a.dataset.pg) pagina = +a.dataset.pg; else if (a.dataset.p) pagina += +a.dataset.p;
+    render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  document.getElementById('filtros').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    this.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on');
+    filtro = b.dataset.f; pagina = 1; render();
+  });
+  campo.addEventListener('input', function () { pagina = 1; render(); });
+  if (cards.length) render();
+  // volta para a solicitação certa depois de mudar o status (#sN)
+  if (location.hash && document.querySelector(location.hash)) {
+    var alvo = document.querySelector(location.hash), i = visiveis().indexOf(alvo);
+    if (i >= 0) { pagina = Math.floor(i / POR_PAGINA) + 1; render(); alvo.scrollIntoView(); }
+  }
+})();
+</script>
+{% endblock %}

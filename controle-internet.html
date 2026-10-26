@@ -766,7 +766,7 @@
           </span>
         </div>
 
-        <div class="monthbar">
+        <div class="monthbar" id="pMonthbar">
           <div class="search"><span data-icon="search"></span><input id="pq" placeholder="Buscar por colaborador, obra, funcao ou tipo..."></div>
           <div class="selectbox"><span data-icon="calendar"></span><input id="pMonthPicker" type="month"></div>
           <button class="ghost" id="openPassagensConfig"><span data-icon="settings"></span>Configurar API</button>
@@ -783,6 +783,7 @@
           <button class="toplink" data-p-view="creditos">Creditos</button>
           <button class="toplink" data-p-view="kpi">KPI</button>
           <button class="toplink" data-p-view="pontos">Pontos</button>
+          <button class="toplink" data-p-view="cotacao">Cotacao</button>
         </div>
 
         <div class="view on" id="pview-overview">
@@ -1390,6 +1391,9 @@
               </table>
             </div>
           </section>
+        </div>
+        <div class="view" id="pview-cotacao">
+          <iframe id="cotacaoFrame" title="Cotacao de passagens" style="width:100%;height:900px;border:0;display:block;background:transparent" data-src="/cotacao/?embed=1"></iframe>
         </div>
         <div class="view" id="pview-pontos">
           <div class="pts-herorow">
@@ -2263,7 +2267,18 @@ AMAURI BARROSO DE MOURA"></textarea>
       document.querySelectorAll('#modulePassagens .view').forEach(view => view.classList.remove('on'));
       document.querySelector(`.toplink[data-p-view="${viewName}"]`).classList.add('on');
       document.getElementById(`pview-${viewName}`).classList.add('on');
+      const pMonthbar = document.getElementById('pMonthbar');
+      if (pMonthbar) pMonthbar.style.display = viewName === 'cotacao' ? 'none' : '';
+      if (viewName === 'cotacao') {
+        const frame = document.getElementById('cotacaoFrame');
+        if (frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.dataset.src);
+      }
     }
+    window.addEventListener('message', event => {
+      if (event.origin !== window.location.origin || !event.data || !event.data.cotacaoAltura) return;
+      const frame = document.getElementById('cotacaoFrame');
+      if (frame) frame.style.height = Math.max(600, Math.ceil(event.data.cotacaoAltura) + 8) + 'px';
+    });
     function openCartaoView(viewName) {
       document.querySelectorAll('.toplink[data-c-view]').forEach(item => item.classList.remove('on'));
       document.querySelectorAll('#moduleCartao .view').forEach(view => view.classList.remove('on'));

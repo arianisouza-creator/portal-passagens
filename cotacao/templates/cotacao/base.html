@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block titulo_aba %}Portal Passagens{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('cotacao.static', filename='mse.css') }}">
+</head>
+<body class="{{ 'embed' if embed }}">
+
+{% if embed %}
+<nav class="embednav" aria-label="Cotação">
+  <a class="{{ 'on' if ativo == 'solicitar' }}" href="{{ url_for('cotacao.index', **q) }}">Solicitar passagem</a>
+  <a class="{{ 'on' if ativo == 'solicitacoes' }}" href="{{ url_for('cotacao.solicitacoes', **q) }}">Solicitações feitas{% if qtd_novas %} <span class="cnt">{{ qtd_novas }}</span>{% endif %}</a>
+</nav>
+{% endif %}
+<div class="pwrap">
+  <div class="pheader">
+    <div class="pheader-title">
+      <h1>{% block titulo %}{% endblock %}<small>{% block subtitulo %}{% endblock %}</small></h1>
+    </div>
+    <span class="pheader-ico" aria-hidden="true">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">{% block icone %}{% endblock %}</svg>
+    </span>
+    <div class="pheader-bar">
+      <ul class="pheader-nav"></ul>
+      <div class="pheader-btns">{% block botoes %}{% endblock %}</div>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="side" aria-label="Menu">
+    <div class="grp">Passagens</div>
+    <a class="nv {{ 'on' if ativo == 'solicitar' }}" href="{{ url_for('cotacao.index', **q) }}" {{ 'aria-current="page"' | safe if ativo == 'solicitar' }}>
+      <span class="ni"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span>
+      <span class="nl">Solicitar passagem</span>
+    </a>
+    <a class="nv {{ 'on' if ativo == 'solicitacoes' }}" href="{{ url_for('cotacao.solicitacoes', **q) }}" {{ 'aria-current="page"' | safe if ativo == 'solicitacoes' }}>
+      <span class="ni"><svg viewBox="0 0 24 24"><path d="M8 2h8v4H8zM16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 12h6M9 16h4"/></svg></span>
+      <span class="nl">Solicitações feitas</span>
+      {% if qtd_novas %}<span class="cnt" title="Solicitações novas">{{ qtd_novas }}</span>{% endif %}
+    </a>
+    <div class="side-foot">Portal de testes<br>Cotação via Google Flights</div>
+  </aside>
+
+  <main class="main">
+    <div class="subrow2">
+      <button class="sidetoggle" id="sideToggle" title="Recolher menu" aria-label="Recolher menu" type="button">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <span class="ico"><svg viewBox="0 0 24 24">{% block icone_sub %}{{ self.icone() }}{% endblock %}</svg></span>
+      <span class="lab"><b>{% block lab %}{% endblock %}</b></span>
+    </div>
+    {% if modo == 'exemplo' %}
+    <div class="banner"><b>Modo exemplo.</b> Não há chave do SerpApi configurada, então os voos e preços são <b>fictícios</b>, só para testar. Coloque a chave no arquivo <code>.env</code> para buscar de verdade.</div>
+    {% endif %}
+    {% block conteudo %}{% endblock %}
+  </main>
+</div>
+
+<script>
+(function(){
+  var btn=document.getElementById('sideToggle'), shell=document.querySelector('.shell');
+  if(btn&&shell)btn.addEventListener('click',function(){shell.classList.toggle('side-closed');
+    btn.title=shell.classList.contains('side-closed')?'Abrir menu':'Recolher menu';});
+})();
+</script>
+{% block scripts %}{% endblock %}
+{% if embed %}
+<script>
+(function(){
+  function h(){ try{ parent.postMessage({cotacaoAltura: document.body.offsetHeight}, location.origin); }catch(e){} }
+  window.addEventListener('load', h);
+  if (window.ResizeObserver) new ResizeObserver(h).observe(document.body);
+  setInterval(h, 1000);
+})();
+</script>
+{% endif %}
+</body>
+</html>

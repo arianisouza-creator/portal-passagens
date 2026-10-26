@@ -1,0 +1,123 @@
+{% extends "cotacao/base.html" %}
+{% block titulo_aba %}Solicitar passagem · Portal Passagens{% endblock %}
+{% block titulo %}Solicitar passagem{% endblock %}
+{% block subtitulo %}Preencha os dados, busque as opções de voo e escolha a melhor tarifa.{% endblock %}
+{% block icone %}<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>{% endblock %}
+{% block lab %}Nova solicitação{% endblock %}
+{% block botoes %}
+  <a class="btn btn-gray" href="{{ url_for('cotacao.solicitacoes', **q) }}"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Ver solicitações</a>
+{% endblock %}
+
+{% block conteudo %}
+<form id="form" onsubmit="return false" autocomplete="off">
+
+  <div class="card pad">
+    <label class="field"><span class="lbl">Tipo da solicitação</span>
+      <select id="tipoSolic"><option>Passagem Avulsa</option><option>Mobilização</option><option>Desmobilização</option><option>Transferência de obra</option></select></label>
+  </div>
+
+  <div class="card pad">
+    <div class="chead"><span class="cico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-3 6-4 1 1-4z"/></svg></span><span class="ti2">Tipo de viagem</span><span class="lbl">Etapa 1</span></div>
+    <div class="field"><span class="lbl">Modal <span class="req">*</span></span>
+      <div class="choices" data-group="modal">
+        <button type="button" class="choice" data-v="onibus"><span class="ci"><svg viewBox="0 0 24 24"><path d="M8 6v6M15 6v6M2 12h19.6M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg></span><span><b>Ônibus</b><small>Trecho rodoviário nacional</small></span></button>
+        <button type="button" class="choice on" data-v="aviao"><span class="ci"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span><span><b>Avião</b><small>Trecho aéreo, bagagem e extras</small></span></button>
+      </div>
+    </div>
+    <div class="switchrow">
+      <div><span class="lbl">Passagem internacional</span><b>Voo para fora do Brasil?</b><small>No teste, só voos nacionais são buscados.</small></div>
+      <label class="sw"><input type="checkbox" id="internacional" aria-label="Passagem internacional"><span></span></label>
+    </div>
+  </div>
+
+  <div class="card pad">
+    <div class="chead"><span class="cico"><svg viewBox="0 0 24 24"><path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8M4 21a8 8 0 0 1 16 0"/></svg></span><span class="ti2">Viajante</span><span class="lbl">Etapa 2</span></div>
+    <label class="field"><span class="lbl">Nome <span class="req">*</span></span><input type="text" id="nome" placeholder="Nome completo"></label>
+    <div class="grid2">
+      <label class="field"><span class="lbl">Função <span class="req">*</span></span><input type="text" id="funcao"></label>
+      <label class="field"><span class="lbl">Obra <span class="req">*</span></span><input type="text" id="obra"></label>
+      <label class="field"><span class="lbl">CPF <span class="req">*</span></span><input type="text" id="cpf" inputmode="numeric" placeholder="000.000.000-00" maxlength="14"></label>
+      <label class="field"><span class="lbl">RG</span><input type="text" id="rg"></label>
+      <label class="field"><span class="lbl">Data de nascimento <span class="req">*</span></span><input type="date" id="nascimento"></label>
+    </div>
+  </div>
+
+  <div class="card pad">
+    <div class="chead"><span class="cico"><svg viewBox="0 0 24 24"><path d="M4 22V4M4 4h13l-2 4 2 4H4"/></svg></span><span class="ti2">Motivo e itinerário</span><span class="lbl">Etapa 3</span></div>
+    <div class="field"><span class="lbl">Motivo da viagem <span class="req">*</span></span>
+      <div class="seg" data-group="motivo">
+        <button type="button" data-v="Dispensa">Dispensa</button><button type="button" data-v="Troca de obra">Troca de obra</button>
+        <button type="button" data-v="Visita">Visita</button><button type="button" data-v="Folga de campo">Folga de campo</button><button type="button" data-v="Outro">Outro</button>
+      </div></div>
+    <div class="field"><span class="lbl">Essa viagem é <span class="req">*</span></span>
+      <div class="seg" data-group="trecho"><button type="button" data-v="ida_volta">Ida e volta</button><button type="button" data-v="ida">Somente ida</button></div></div>
+    <div class="grid2">
+      <label class="field"><span class="lbl">Data de ida <span class="req">*</span></span><input type="date" id="dataIda" min="{{ hoje }}"></label>
+      <label class="field hide" id="boxVolta"><span class="lbl">Data de volta <span class="req">*</span></span><input type="date" id="dataVolta" min="{{ hoje }}"></label>
+    </div>
+    <div class="field hide" id="boxOnibusAcom"><span class="lbl">Acomodação no ônibus <span class="req">*</span></span>
+      <div class="seg" data-group="acomodacao">
+        <button type="button" data-v="Cabine e cama">Cabine e cama</button><button type="button" data-v="Executivo">Executivo</button>
+        <button type="button" data-v="Semi-leito">Semi-leito</button><button type="button" data-v="Leito">Leito</button>
+      </div></div>
+  </div>
+
+  <div class="card pad">
+    <div class="chead"><span class="cico"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11zM12 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/></svg></span><span class="ti2">Origem e destino</span><span class="lbl">Etapa 4</span></div>
+    <div class="route">
+      <div class="box"><h3>Ida</h3>
+        <label class="field"><span class="lbl">Estado de ida</span><select id="ufOrigem"></select></label>
+        <label class="field"><span class="lbl">Cidade de ida</span><select id="cidOrigem"></select></label>
+        <label class="checkline hide" id="boxProximos"><input type="checkbox" id="chkProximos" checked>
+          <span>Incluir também aeroportos próximos na cotação: <b id="proximosRotulo"></b></span></label>
+      </div>
+      <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></div>
+      <div class="box"><h3>Destino</h3>
+        <label class="field"><span class="lbl">Estado de destino</span><select id="ufDestino"></select></label>
+        <label class="field"><span class="lbl">Cidade de destino</span><select id="cidDestino"></select></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card pad">
+    <div class="chead"><span class="cico"><svg viewBox="0 0 24 24"><path d="M2 7h20v14H2zM16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></span><span class="ti2">Documentos e extras</span><span class="lbl">Etapa 5</span></div>
+    <label class="field"><span class="lbl">Foto do documento do viajante (CPF ou RG)</span><input type="file" id="documento" accept=".pdf,.jpg,.jpeg,.png"></label>
+    <label class="field"><span class="lbl">Observações</span><textarea id="obs" placeholder="Horário preferencial, conexão, restrição…"></textarea></label>
+    <div class="grid2" id="extrasAviao">
+      <div class="field"><span class="lbl">Bagagem despachada <span class="req">*</span></span>
+        <div class="seg" data-group="bagagem"><button type="button" data-v="Sim" class="on">Sim</button><button type="button" data-v="Não">Não</button></div>
+        <div class="note">Somente em mobilização, desmobilização, transferência de obra ou com aprovação da diretoria.</div></div>
+      <div class="field"><span class="lbl">Inclui trajeto de ônibus <span class="req">*</span></span>
+        <div class="seg" data-group="inclui_onibus"><button type="button" data-v="Sim">Sim</button><button type="button" data-v="Não" class="on">Não</button></div></div>
+    </div>
+    <div class="field"><span class="lbl">Necessário hospedagem? <span class="req">*</span></span>
+      <div class="seg" data-group="hospedagem"><button type="button" data-v="Sim">Sim</button><button type="button" data-v="Não" class="on">Não</button></div></div>
+  </div>
+
+  <div class="card pad">
+    <div class="chead"><span class="cico"><svg viewBox="0 0 24 24"><path d="M5 17h14M3 13l2-6h14l2 6v4H3z"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/></svg></span><span class="ti2">Veículo</span><span class="lbl">Etapa 6</span></div>
+    <div class="field"><span class="lbl">Necessário veículo? <span class="req">*</span></span>
+      <div class="seg" data-group="veiculo"><button type="button" data-v="Sim">Sim</button><button type="button" data-v="Não" class="on">Não</button></div>
+      <div class="note">Locação para o trecho nacional, se necessário.</div></div>
+  </div>
+
+  <div class="card pad" id="cardBusca">
+    <div class="chead"><span class="cico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><span class="ti2">Opções de voo</span><span class="lbl">Etapa 7</span></div>
+    <button type="button" class="btn btn-outline" id="btnBuscar"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><span>Buscar opções</span></button>
+    <div id="msgBusca" class="note"></div>
+    <div id="erroBusca" class="erro hide"></div>
+    <div id="resultados"></div>
+    <div id="avisoPreco"></div>
+  </div>
+
+  <div id="erroEnvio" class="erro hide"></div>
+  <div id="sucesso" class="card pad hide"></div>
+</form>
+
+<div class="stickybar" id="barra">
+  <div class="msg" id="msgBarra"></div>
+  <button type="button" class="btn btn-blue" id="btnSolicitar" disabled><svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"/></svg>Solicitar</button>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('cotacao.static', filename='solicitar.js') }}"></script>{% endblock %}
