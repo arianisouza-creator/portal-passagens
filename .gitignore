@@ -8,6 +8,7 @@ portal_data.db
 venv/
 env/
 .env
+.env.txt
 .vscode/
 .idea/
 *.py[cod]

@@ -1,7 +1,7 @@
 (function () {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
-  const MIN_JUST = 15;
+  const MIN_JUST = 10;
 
   const state = {
     modal: "aviao", motivo: "", trecho: "", acomodacao: "",
@@ -211,7 +211,7 @@
         <div class="note" id="contaJust"></div></div>`;
       const ta = $("#justificativa");
       const conta = () => { $("#contaJust").textContent = `${ta.value.trim().length}/${MIN_JUST} caracteres mínimos`; };
-      ta.addEventListener("input", () => { justificativa = ta.value; conta(); atualizarBotao(); });
+      ["input", "change", "keyup", "paste"].forEach((ev) => ta.addEventListener(ev, () => { justificativa = ta.value; conta(); atualizarBotao(); }));
       conta();
     }
   }
@@ -233,7 +233,10 @@
     const trechos = state.trecho === "ida_volta" ? ["ida", "volta"] : ["ida"];
     for (const t of trechos) if (!ofertaEscolhida(t)) return `Escolha o voo de ${t}.`;
     const a = avaliar();
-    if (a && !a.melhorOk && justificativa.trim().length < MIN_JUST) return "Justifique por que não escolheu o menor preço.";
+    if (a && !a.melhorOk && justificativa.trim().length < MIN_JUST) {
+      const n = justificativa.trim().length;
+      return n ? `Justificativa curta: escreva pelo menos ${MIN_JUST} caracteres (faltam ${MIN_JUST - n}).` : "Justifique por que não escolheu o menor preço.";
+    }
     return "";
   }
   function atualizarBotao() {
@@ -266,7 +269,8 @@
     const f = $("#documento").files[0]; if (f) fd.append("documento", f);
     try {
       const r = await fetch("/cotacao/api/solicitar", { method: "POST", body: fd });
-      const j = await r.json();
+      let j = {};
+      try { j = await r.json(); } catch (_) { throw new Error(`Erro do servidor (${r.status}). Tente de novo e, se repetir, avise o suporte.`); }
       if (!r.ok) throw new Error((j.erros || ["Erro ao enviar."]).join("\n"));
       $("#form").querySelectorAll(".card, .erro").forEach((c) => c.classList.add("hide"));
       const s = $("#sucesso"); s.classList.remove("hide");

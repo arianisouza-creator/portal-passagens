@@ -39,11 +39,11 @@ SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
 FORCAR_EXEMPLO = os.environ.get("MODO_EXEMPLO", "") == "1"
 ADMIN_PASSWORD = os.environ.get("COTACAO_ADMIN_PASSWORD", "")
 CACHE_MINUTOS = 30          # reaproveita busca idêntica (economiza créditos)
-MAX_RESULTADOS = 20         # voos mostrados por trecho
-MIN_JUSTIFICATIVA = 15      # caracteres
+MAX_RESULTADOS = 60         # teto de voos lidos por trecho (praticamente tudo que o Google devolve)
+MIN_JUSTIFICATIVA = 10      # caracteres
 # Quantas opções (das mais baratas no Google) têm o preço DIRETO NA COMPANHIA conferido por trecho.
-# Cada conferência gasta 1 crédito do SerpApi. Ajuste no .env (OPCOES_COMPANHIA=8).
-OPCOES_COMPANHIA = max(1, min(15, int(os.environ.get("OPCOES_COMPANHIA", "8") or 8)))
+# Cada conferência gasta 1 crédito do SerpApi. Padrão: confere TODAS (até 30). Ajuste no .env (OPCOES_COMPANHIA=30).
+OPCOES_COMPANHIA = max(1, min(60, int(os.environ.get("OPCOES_COMPANHIA", "30") or 30)))
 
 bp = Blueprint("cotacao", __name__, url_prefix="/cotacao", template_folder="templates",
                static_folder="static", static_url_path="/static")
@@ -254,7 +254,7 @@ def serpapi_buscar(dep, arr, data_iso):
                 time.sleep(1.5)
         return o, None, ult
 
-    with ThreadPoolExecutor(max_workers=2) as ex:
+    with ThreadPoolExecutor(max_workers=5) as ex:
         resultados = list(ex.map(tarefa, candidatos))
     finais, ocultas, ultimo_erro, sem_preco, erros = [], 0, None, [], 0
     for o, pc, err in resultados:
@@ -481,11 +481,14 @@ def api_solicitar():
     # não guardamos dentro de dados_json o que já tem coluna própria
     for k in ("busca_id", "escolha_ida", "escolha_volta", "justificativa"):
         d.pop(k, None)
-    novo = q_exec(
+    try:
+        novo = q_exec(
         "INSERT INTO cotacao_solicitacoes (criado_em,status,dados_json,busca_id,escolha_ida,escolha_volta,melhor_preco_ok,"
         "justificativa,preco_escolhido,preco_melhor,documento) VALUES (%s,'Nova',%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (datetime.now().isoformat(timespec="seconds"), json.dumps(d, ensure_ascii=False), busca_id,
          escolha_ida, escolha_volta, melhor_ok, justificativa or None, preco_escolhido, preco_melhor, documento))
+    except Exception as exc:  # mostra o motivo real em vez de erro genérico
+        return jsonify(erros=[f"Não consegui salvar no banco: {exc}"]), 500
     return jsonify(ok=True, id=novo, melhor_preco=melhor_ok)
 
 
