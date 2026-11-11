@@ -238,12 +238,22 @@ def serpapi_buscar(dep, arr, data_iso):
     erro = d.get("error")
     if erro:
         if _sem_resultado(erro):
-            return [], {"ocultas": 0}
+            return [], {"ocultas": 0, "erros": 0, "sem_preco": [], "total_google": 0, "conferidos": 0}
         raise BuscaErro(_mascarar("SerpApi: " + str(erro)))
-    ofertas = [o for o in normalizar_serpapi(d) if o.get("booking_token")]
+    todas = normalizar_serpapi(d)
+    ofertas = [o for o in todas if o.get("booking_token")]
     candidatos = ofertas[:OPCOES_COMPANHIA]
+    # Nada some em silêncio: o que não foi conferido vai para a lista "sem preço direto", com o motivo.
+    nao_conferidos = []
+    for o in todas:
+        if not o.get("booking_token"):
+            o.pop("booking_token", None)
+            nao_conferidos.append(dict(o, motivo="o Google não informou o preço direto da companhia"))
+    for o in ofertas[OPCOES_COMPANHIA:]:
+        o.pop("booking_token", None)
+        nao_conferidos.append(dict(o, motivo=f"fora das {OPCOES_COMPANHIA} opções conferidas"))
     if not candidatos:
-        return [], {"ocultas": 0}
+        return [], {"ocultas": 0, "erros": 0, "sem_preco": nao_conferidos, "total_google": len(todas), "conferidos": 0}
 
     def tarefa(o):
         ult = None
@@ -277,8 +287,8 @@ def serpapi_buscar(dep, arr, data_iso):
     if not finais and ultimo_erro:
         raise ultimo_erro
     finais.sort(key=lambda o: (o["preco"], o["duracao_min"]))
-    return finais, {"ocultas": ocultas, "erros": erros, "sem_preco": sem_preco,
-                    "total_google": len(ofertas)}
+    return finais, {"ocultas": ocultas, "erros": erros, "sem_preco": sem_preco + nao_conferidos,
+                    "total_google": len(todas), "conferidos": len(candidatos)}
 
 
 def gerar_exemplo(dep, arr, data_iso):
@@ -374,11 +384,15 @@ def api_buscar():
         return jsonify(erro=str(e)), 502
     ocultas = info_ida["ocultas"] + info_volta["ocultas"]
     erros = info_ida.get("erros", 0) + info_volta.get("erros", 0)
+    sem_preco_total = len(info_ida.get("sem_preco", [])) + len(info_volta.get("sem_preco", []))
     partes = []
-    if ocultas:
-        partes.append(f"{ocultas} opção(ões) não têm preço direto na companhia (só agências) e não podem ser escolhidas.")
+    if modo == "serpapi":
+        partes.append(f"O Google listou {info_ida.get('total_google', 0) + info_volta.get('total_google', 0)} voo(s); "
+                      f"{len(res_ida) + len(res_volta)} têm preço direto na companhia e podem ser escolhidos.")
+    if sem_preco_total:
+        partes.append(f"{sem_preco_total} ficaram de fora (veja a lista recolhível abaixo, com o motivo de cada um).")
     if erros:
-        partes.append(f"{erros} opção(ões) não puderam ser conferidas por erro de consulta; busque de novo em instantes.")
+        partes.append(f"{erros} não puderam ser conferidos por erro de consulta; busque de novo em instantes.")
     params["aviso"] = " ".join(partes) or None
     params["extras"] = {"ida": info_ida.get("sem_preco", []), "volta": info_volta.get("sem_preco", [])}
 
