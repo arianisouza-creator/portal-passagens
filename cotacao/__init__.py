@@ -42,8 +42,9 @@ CACHE_MINUTOS = 30          # reaproveita busca idêntica (economiza créditos)
 MAX_RESULTADOS = 60         # teto de voos lidos por trecho (praticamente tudo que o Google devolve)
 MIN_JUSTIFICATIVA = 10      # caracteres
 # Quantas opções (das mais baratas no Google) têm o preço DIRETO NA COMPANHIA conferido por trecho.
-# Cada conferência gasta 1 crédito do SerpApi. Padrão: confere TODAS (até 30). Ajuste no .env (OPCOES_COMPANHIA=30).
-OPCOES_COMPANHIA = max(1, min(60, int(os.environ.get("OPCOES_COMPANHIA", "30") or 30)))
+# Cada conferência gasta 1 crédito do SerpApi (plano de 5.000/mês: 10 por trecho = até 22 créditos por ida e volta).
+# Para mudar, edite este número aqui no código (o .env não é mais usado para isso).
+OPCOES_COMPANHIA = 10
 
 bp = Blueprint("cotacao", __name__, url_prefix="/cotacao", template_folder="templates",
                static_folder="static", static_url_path="/static")
